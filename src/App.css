@@ -1,0 +1,86 @@
+input[type="number"]::-webkit-outer-spin-button, 
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.percent {
+  padding-right: 1rem !important;
+}
+
+.percent::after {
+  content: '%';
+  position: absolute;
+  left: calc(100% - 0.8rem);
+  top: 0.3rem;
+}
+
+.dollar {
+  padding-left: 0.7rem !important;
+  vertical-align: middle;
+}
+
+.dollar::before {
+  content: '$';
+  position: absolute;
+  left: 0;
+  top: 0.3rem;
+}
+
+.suffix {
+  display: inline-block;
+  position: absolute;
+  margin-left: 0.2rem;
+  margin-top: 0.3rem;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body, html {
+  height: 100%;
+}
+
+.selected {
+  background: #cfc;
+}
+
+#Worksheet table {
+  font: 13px arial;
+  border: 1px solid black;
+  border-spacing: 0; 
+  empty-cells: show;
+}
+
+#Worksheet td,
+#Worksheet th {
+  padding: 0.2em 0.5em;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #bbb;
+}
+
+#Worksheet th {
+  background: #eee;
+  border-bottom: 1px solid black;
+}
+
+nav {
+  position: sticky;
+  top: 0;
+  background: #bbb;
+  padding: 0.2em;
+  border-bottom: 1px solid #444;
+}
+
+nav button, nav select {
+  height: 2em;
+}
+
+.selected {
+  background: #afa;
+}
