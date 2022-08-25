@@ -20,6 +20,86 @@ const readFile = (file, removeQuotes) => {
           );
 } // readFile
 
+const arg = parm => {
+  const pos = process.argv.indexOf(parm);
+  if (pos > 0) {
+    const result = process.argv[pos + 1];
+    if (result[0] === '/') {
+      error('next string after switch should be a string for the file name');
+    }
+    return result;
+  }
+}
+
+const exit = (s => {
+  console.log(s);
+  process.exit();
+});
+
+const error = (s => {
+  console.error(s);
+  process.exit();
+});
+
+if (arg('/GN') && arg('/GM')) {
+  error('Cannot use GM and GN together');
+}
+
+const GridFileRoot  = arg('/GN') || arg('/GM');
+const SoilFile      = arg('/SN') ? arg('/SN') + '.dat' : '';
+
+// This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
+// The first column is node, the second is the Y value. 
+// This method uses a geometric progression where IntervalRatio is the ratio between two depths
+// direction is 1 for up to down and -1 for down to up
+// Returns ArrayList Segments
+
+const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction) => {
+  let CalculatedLength = FirstInterval;  // keeps track of the summed length of the segments to compare with the planned length (Length)
+  const Segment = [];
+  let dNumberOfNodes = 1 - Length / FirstInterval * (1 - IntervalRatio);
+  dNumberOfNodes = Math.log(dNumberOfNodes) / Math.log(IntervalRatio) + 1;
+  const NumberOfNodes = dNumberOfNodes;
+
+  Segment.push(StartPoint);
+  Segment.push(StartPoint - FirstInterval * Direction); // those going down will decrease in value
+                                                        // those going up increase; in value
+  let aux1 = FirstInterval;
+  // start at the 3rd node (i=2)
+  for (let i = 2; i < NumberOfNodes; i++) {
+    if (Direction === 1) {
+      aux1 += FirstInterval * Math.pow(IntervalRatio, i - 1);
+      let Distance = StartPoint - aux1;
+      CalculatedLength += FirstInterval * Math.pow(IntervalRatio, i - 1);
+      const Difference = CalculatedLength - Length;
+      // if we overshot or undershot the distance we have to correct the last length
+      if (i === NumberOfNodes - 1) {
+        if (Math.abs(Difference) > 0) {
+          Distance += Difference;
+        }
+      }
+
+      Segment.push(Distance);   // if you round up on number of nodes. you will go past the length.
+                                // This can be calculated as (dNumberOfNodes-NumberOfNodes)
+    }
+
+    if (Direction === -1) {
+      aux1 += FirstInterval * Math.pow(IntervalRatio, i - 1);
+      let Distance = StartPoint + aux1;
+      CalculatedLength += FirstInterval * Math.pow(IntervalRatio, i - 1);
+      const Difference = CalculatedLength - Length;
+
+      if (i === NumberOfNodes - 1) {
+        if (Math.abs(Difference) > 0) {
+          Distance = Distance - Difference;
+        }
+      }
+      Segment.push(Distance);
+    }
+  }
+  return Segment;
+} // CaclYNodes
+
 const datagen2 = (layerFile) => {
   const data = readFile(layerFile, true);
   
@@ -29,11 +109,50 @@ const datagen2 = (layerFile) => {
   const [BottomBC, GasBCTop, GasBCBottom] = data[8];
   // console.log({SurfaceIntervalRatio, FirstSurfaceInterval, InternalIntervalRatio, FirstInternalInterval, RowSpacing, PlantingDepth, xRootExtent, rootweightperslab, BottomBC, GasBCTop, GasBCBottom});
 
-  const cols = 'Depth|InitType|OM|NO3|NH4|hNew|Tmpr|CO2|O2|Sand|Silt|Clay|BD|TH33|TH1500|thr|ths|tha|th|alpha|n|ks|kk|thk|OM_Slope|NO3_Slope|NH4_Slope|hNew_Slope|Tmpr_Slope|CO2_Slope|O2_Slope|Sand_Slope|Silt_Slope|Clay_Slope|BD_Slope|Y|Y_Mid'.split('|');
-
   let dtLayers = data.slice(11);
 
   // emulate C# DataTable
+  const cols = [
+    'Depth',
+    'InitType',
+    'OM',
+    'NO3',
+    'NH4',
+    'hNew',
+    'Tmpr',
+    'CO2',
+    'O2',
+    'Sand',
+    'Silt',
+    'Clay',
+    'BD',
+    'TH33',
+    'TH1500',
+    'thr',
+    'ths',
+    'tha',
+    'th',
+    'alpha',
+    'n',
+    'ks',
+    'kk',
+    'thk',
+    // the following columns are not in the input data but are needed for calculations
+    'OM_Slope',
+    'NO3_Slope',
+    'NH4_Slope',
+    'hNew_Slope',
+    'Tmpr_Slope',
+    'CO2_Slope',
+    'O2_Slope',
+    'Sand_Slope',
+    'Silt_Slope',
+    'Clay_Slope',
+    'BD_Slope',
+    'Y',
+    'Y_Mid'
+  ];
+
   dtLayers.forEach((row, i) => {
     dtLayers[i] = new Proxy(row, {
       get(target, key) {
@@ -75,6 +194,35 @@ const datagen2 = (layerFile) => {
       // calculate slopes needed to interpolate soil properties through the profile
       dtLayers[i][j] = (dtLayers[i + 1][j - 22] - dtLayers[i][j - 22]) / (dtLayers[i + 1]['Y_Mid'] - dtLayers[i]['Y_Mid']);
     }
+  }
+
+  // Need a decision point here. 
+
+  // 1-We build a grid file from scratch. For this we need - lower depth, material depths, boundary conditions
+  // but BC can be set at first. The descritization of the nodes must be handled first. We create the file data2Gen.dat to send
+  // to the grid generator
+
+  // 2-If we use a template for the grid file we need to either parse the existing grid file or use an existing data2Gen file. In this 
+  // case we have the grid information, we only need to fill in the material numbers
+
+  if (GridFileRoot) {
+    // we will create a gridgen file and use it to call the mesh generator 
+    // This code will create the input file.
+    // Get depth of profile
+
+    const myField = dtLayers[MatNum - 1];
+
+    // Do first layer for testing
+    const Layer = dtLayers[0];
+    const Layer1 = Layer[0];
+    const upper = ProfileDepth;
+    const lower = ProfileDepth - Layer1;
+    const mid = (upper - lower) / 2.0;
+
+    const Segment1 = CaclYNodes(SurfaceIntervalRatio, mid, upper, FirstSurfaceInterval, 1);
+    exit({
+      ProfileDepth, Layer1, upper, lower, mid, Segment1
+    })
   }
 
   console.log(dtLayers);

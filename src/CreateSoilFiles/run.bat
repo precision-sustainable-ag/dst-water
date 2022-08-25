@@ -1,1 +1,1 @@
-node .\CreateSoilFiles.js .\run_01.lyr
+node .\CreateSoilFiles.js .\run_01.lyr /GN run_01 /SN MeadIr_run_01
