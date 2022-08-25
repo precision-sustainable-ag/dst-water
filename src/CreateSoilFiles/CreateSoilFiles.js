@@ -31,15 +31,28 @@ const datagen2 = (layerFile) => {
 
   const cols = 'Depth|InitType|OM|NO3|NH4|hNew|Tmpr|CO2|O2|Sand|Silt|Clay|BD|TH33|TH1500|thr|ths|tha|th|alpha|n|ks|kk|thk|OM_Slope|NO3_Slope|NH4_Slope|hNew_Slope|Tmpr_Slope|CO2_Slope|O2_Slope|Sand_Slope|Silt_Slope|Clay_Slope|BD_Slope|Y|Y_Mid'.split('|');
 
-  const dtLayers = data.slice(11);
-  
-  dtLayers.forEach(row => {
-    cols.forEach((col, i) => row[col] = row[i]);
+  let dtLayers = data.slice(11);
+
+  // emulate C# DataTable
+  dtLayers.forEach((row, i) => {
+    dtLayers[i] = new Proxy(row, {
+      get(target, key) {
+        return key in target ? target[key] : target[cols.indexOf(key)];
+      },
+      set(target, key, value) {
+        if (Number.isFinite(key)) target[key] = value;
+        else target[cols.indexOf(key)] = value;
+      }
+    });
   });
 
   const MatNum = dtLayers.length;
   const ProfileDepth = dtLayers[MatNum - 1][0];
 
+  // Now calculate midpoint depths in interior layers for use in interpolation later
+  // Also calculate Nitrogen and Carbon concentrations from litter and OM additions
+  // don't have litter and manure yet but will have it in the future
+  
   dtLayers[0]['Y'] = ProfileDepth - dtLayers[0]['Depth'];
   dtLayers[0]['Y_Mid'] = ProfileDepth;
   dtLayers[MatNum - 1]['Y'] = ProfileDepth - dtLayers[MatNum - 1]['Depth'];
@@ -49,6 +62,19 @@ const datagen2 = (layerFile) => {
     dtLayers[i]['Y'] = ProfileDepth - dtLayers[i]['Depth'];
     dtLayers[i]['Y_Mid'] = (dtLayers[i - 1]['Y'] - dtLayers[i]['Y']) / 2.0;
     dtLayers[i]['Y_Mid'] = dtLayers[i]['Y_Mid'] + dtLayers[i]['Y'];
+  }
+
+  // Now calculate slopes of changes in properties from layer to layer so we can interpolate
+  // If we add columns after OM then we have to increase the counter in dtLayers.Rows[i + 1][j - 21]. j-21 should begin
+  // I think this should be the total number of columns minus the number of columns before OM
+  // with column 2 if we add anything after OM. if you add a column before OM then decrease this number
+
+  for (let i = 0; i < MatNum - 1; i++) {
+    // slopes begin after column thk; last two columns are y and y_mid values
+    for (let j = cols.indexOf('thk') + 1; j < cols.length - 2; j++) { 
+      // calculate slopes needed to interpolate soil properties through the profile
+      dtLayers[i][j] = (dtLayers[i + 1][j - 22] - dtLayers[i][j - 22]) / (dtLayers[i + 1]['Y_Mid'] - dtLayers[i]['Y_Mid']);
+    }
   }
 
   console.log(dtLayers);
