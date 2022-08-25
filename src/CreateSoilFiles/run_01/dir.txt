@@ -1,0 +1,31 @@
+ Volume in drive D has no label.
+ Volume Serial Number is 849A-9712
+
+ Directory of D:\Maizsim07\AgmipET2\run_01
+
+08/24/2022  07:57 AM    <DIR>          .
+07/27/2022  10:35 AM    <DIR>          ..
+08/24/2022  07:53 AM             1,989 AgMip.nit
+08/24/2022  07:53 AM               592 Agmip2Climate.dat
+08/24/2022  07:53 AM               362 BiologyDefault.bio
+08/24/2022  07:57 AM                 0 createError.log
+08/24/2022  07:55 AM            28,672 createSoilFiles_CO2.exe
+08/24/2022  07:57 AM                 0 dir.txt
+08/24/2022  07:53 AM               341 GasID.gas
+08/24/2022  07:57 AM               289 grid1.bat
+08/24/2022  07:53 AM                20 grid2.bat
+08/24/2022  07:53 AM             1,498 MulchGeo1.mul
+08/24/2022  07:53 AM               798 NitrogenDefault.sol
+07/27/2022  10:52 AM    <DIR>          ok
+07/27/2022  10:51 AM    <DIR>          other
+08/24/2022  07:53 AM             2,585 Pn_33B51.var
+08/24/2022  07:53 AM             1,155 runrun_01.dat
+08/24/2022  07:53 AM               161 run_01.drp
+08/24/2022  07:53 AM               545 run_01.ini
+08/24/2022  07:53 AM             3,712 run_01.lyr
+08/24/2022  07:53 AM             1,087 run_01.man
+08/24/2022  07:53 AM               466 run_01.tim
+08/24/2022  07:53 AM               248 water.dat
+08/24/2022  07:53 AM               153 WaterBound.dat
+              20 File(s)         44,673 bytes
+               4 Dir(s)  357,223,960,576 bytes free
