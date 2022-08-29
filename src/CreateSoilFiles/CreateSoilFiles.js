@@ -53,7 +53,6 @@ const SoilFile      = arg('/SN') ? arg('/SN') + '.dat' : '';
 // This method uses a geometric progression where IntervalRatio is the ratio between two depths
 // direction is 1 for up to down and -1 for down to up
 // Returns ArrayList Segments
-
 const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction) => {
   let CalculatedLength = FirstInterval;  // keeps track of the summed length of the segments to compare with the planned length (Length)
   const Segment = [];
@@ -100,6 +99,66 @@ const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction
   return Segment;
 } // CaclYNodes
 
+// This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
+// The first column is node, the second is the Y value. 
+// This method uses a geometric progression where IntervalRatio is the ratio between two depths
+// Calculates the nodes for the X dimension (across row). The only input it RowSpacing
+// parameters for interval, etc are hardcoded.
+// Returns ArrayList Segments
+const CaclXNodes = (RowSpacing) => {
+  const FirstInterval = .75;
+  const IntervalRatio = 1.4;  // WSun change the values to make the number of nodes in X direction become 7
+  const Length = RowSpacing / 2;
+  const StartPoint = 0;
+  const Segment = [];
+
+  let dNumberOfNodes = 1 - Length / FirstInterval * (1 - IntervalRatio);
+  dNumberOfNodes = Math.log(dNumberOfNodes) / Math.log(IntervalRatio) + 1;
+  const NumberOfNodes = dNumberOfNodes;
+
+  let CalculatedLength = FirstInterval;
+  Segment.push(StartPoint, StartPoint + FirstInterval); // x axis increases in value
+  let aux1 = FirstInterval;
+  // start at the 3rd node (i=2)
+  for (let i = 2; i < NumberOfNodes; i++) {
+    aux1 += FirstInterval * Math.pow(IntervalRatio, i - 1);
+    let Distance = StartPoint + aux1;
+    CalculatedLength += FirstInterval * Math.pow(IntervalRatio, i - 1);
+    const Difference = Length-CalculatedLength;
+    //if we overshot or undershot the distance we have to correct the last length
+    if (i === NumberOfNodes-1) {
+      if (Difference < 0) {
+        Distance += Difference;
+      }
+      if (Math.abs(Difference) > 0) {
+        Distance = Length;
+      }
+    }
+
+    Segment.push(Distance);   // if you round up on number of nodes. you will go past the length.
+                              // This can be calculated as (dNumberOfNodes-NumberOfNodes)
+  }
+  return Segment;
+} // CaclXNodes
+
+// emulate C# DataTable
+const dataTable = (data, columns) => {
+  data.forEach((row, i) => {
+    data[i] = new Proxy(row, {
+      get(target, key) {
+        return key in target ? target[key] : target[columns.indexOf(key)];
+      },
+      set(target, key, value) {
+        if (Number.isFinite(key)) target[key] = value;
+        else target[columns.indexOf(key)] = value;
+      }
+    });
+  });
+
+  data.columns = columns;
+  return data;
+} // dataTable
+
 const datagen2 = (layerFile) => {
   const data = readFile(layerFile, true);
   
@@ -109,10 +168,7 @@ const datagen2 = (layerFile) => {
   const [BottomBC, GasBCTop, GasBCBottom] = data[8];
   // console.log({SurfaceIntervalRatio, FirstSurfaceInterval, InternalIntervalRatio, FirstInternalInterval, RowSpacing, PlantingDepth, xRootExtent, rootweightperslab, BottomBC, GasBCTop, GasBCBottom});
 
-  let dtLayers = data.slice(11);
-
-  // emulate C# DataTable
-  const cols = [
+  const dtLayers = dataTable(data.slice(11), [
     'Depth',
     'InitType',
     'OM',
@@ -151,19 +207,7 @@ const datagen2 = (layerFile) => {
     'BD_Slope',
     'Y',
     'Y_Mid'
-  ];
-
-  dtLayers.forEach((row, i) => {
-    dtLayers[i] = new Proxy(row, {
-      get(target, key) {
-        return key in target ? target[key] : target[cols.indexOf(key)];
-      },
-      set(target, key, value) {
-        if (Number.isFinite(key)) target[key] = value;
-        else target[cols.indexOf(key)] = value;
-      }
-    });
-  });
+  ]);
 
   const MatNum = dtLayers.length;
   const ProfileDepth = dtLayers[MatNum - 1][0];
@@ -190,7 +234,7 @@ const datagen2 = (layerFile) => {
 
   for (let i = 0; i < MatNum - 1; i++) {
     // slopes begin after column thk; last two columns are y and y_mid values
-    for (let j = cols.indexOf('thk') + 1; j < cols.length - 2; j++) { 
+    for (let j = dtLayers.columns.indexOf('thk') + 1; j < dtLayers.columns.length - 2; j++) { 
       // calculate slopes needed to interpolate soil properties through the profile
       dtLayers[i][j] = (dtLayers[i + 1][j - 22] - dtLayers[i][j - 22]) / (dtLayers[i + 1]['Y_Mid'] - dtLayers[i]['Y_Mid']);
     }
@@ -216,12 +260,32 @@ const datagen2 = (layerFile) => {
     const Layer = dtLayers[0];
     const Layer1 = Layer[0];
     const upper = ProfileDepth;
-    const lower = ProfileDepth - Layer1;
+    let lower = ProfileDepth - Layer1;
     const mid = (upper - lower) / 2.0;
 
-    const Segment1 = CaclYNodes(SurfaceIntervalRatio, mid, upper, FirstSurfaceInterval, 1);
+    const MasterSegment = [];
+    const Segment1 = CaclYNodes(SurfaceIntervalRatio, mid, upper, FirstSurfaceInterval, 1).slice(0, -1);
+    const Segment2 = CaclYNodes(InternalIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => a - b).slice(0, -1); // TODO: proof
+    MasterSegment.push(Segment1, Segment2);
+
+    // need to store segment 1 and 2
+    if (MatNum > 1) {
+      dtLayers.slice(1).forEach(Layer => {
+        const upper = lower;
+        lower = ProfileDepth - Layer[0];  // the first item in the layer string is the depth
+        const mid = (upper - lower) / 2.0;
+        const Segment1 = CaclYNodes(InternalIntervalRatio, mid, upper, FirstInternalInterval, 1).slice(0, -1);
+        const Segment2 = CaclYNodes(SurfaceIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => a - b).slice(0, -1); // TODO: proof
+        MasterSegment.push(Segment1, Segment2);
+      });
+    }
+
+    const xSegment = CaclXNodes(RowSpacing);
+
+    WriteToGridGenFile('dataGen2.dat', MasterSegment, xSegment, BottomBC, GasBCTop, GasBCBottom);
+    exit();
     exit({
-      ProfileDepth, Layer1, upper, lower, mid, Segment1
+      myField, ProfileDepth, Layer1, upper, lower, mid, MasterSegment
     })
   }
 
@@ -231,6 +295,45 @@ const datagen2 = (layerFile) => {
   s.push('IJ  E00  n00   NumNP  NumEl NMAt  BC  GasBCTop   GasBCBottom');
   fs.writeFileSync('datagen2.dat.try', s.join('\n'));  
 } // datagen2
+
+// Writes to the GridGenFile which is used by the fortran program
+const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop, GasBCBottom) => {
+  const s = ['IJ  E00  n00   NumNP  NumEl NMAt  BC  GasBCTop   GasBCBottom'];
+  
+  // calculate total number of y nodes
+  let YnodeCount = 0;
+  for (let i = 0; i < YSegment.length; i++) {
+    const Seg = YSegment[i];
+    for (let j = 0; j < Seg.Count; j++) {
+      YnodeCount++;
+    }
+  }
+  s.push(` ${xSegment.length} 1   1  ${xSegment.length * YnodeCount}   ${(xSegment.length - 1) * (YnodeCount - 1)}  0  ${BottomBC}   ${GasBCTop}   ${GasBCBottom}`);
+  s.push('x(j): ');
+  console.log(s.join('\n'));
+/*  
+  for (i=0;i<xSegment.Count();i++)
+  {
+      srOut.Write(" {0} ", xSegment[i]);
+  }
+
+  srOut.WriteLine();
+  srOut.WriteLine("y(i): 1->(NumNP-n00)/IJ+1");
+  for (i = 0; i < YSegment.Count; i++) 
+  {
+      ArrayList Seg = (ArrayList)YSegment[i];
+      for (j = 0; j < Seg.Count; j++)
+      {
+          srOut.Write(" {0} ",Seg[j]); // for some reason when this is a float you don't need to cast. I am not sure why
+      }
+      srOut.WriteLine();
+
+  }
+
+
+  srOut.Close();
+*/  
+} // WriteToGridGenFile
 
 const grid_bnd = () => {
   const format = (parms, formats) => {
