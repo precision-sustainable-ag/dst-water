@@ -281,14 +281,93 @@ const datagen2 = (layerFile) => {
     const xSegment = CaclXNodes(RowSpacing);
 
     WriteToGridGenFile('dataGen2.dat', MasterSegment, xSegment, BottomBC, GasBCTop, GasBCBottom);
-    exit();
-    exit({
-      myField, ProfileDepth, Layer1, upper, lower, mid, MasterSegment
-    })
+    grid_bnd();
+
+    const dsGrid = ParseGridFile('Grid_bnd');
   }
 
   console.log(dtLayers);
 } // datagen2
+
+// This procedure reads the Grid file and extracts the grid 
+// the procedure creates a table to hold the grid data and fills it with data from the file.
+const ParseGridFile = (GridFile) => {
+  const data = readFile(GridFile);
+  const [_, node, element] = data[2];
+
+  const dtNode = dataTable(data.slice(4, node + 4), [
+    'Node',
+    'X',
+    'Y',
+    'MatNum',
+    'NodeArea',
+    'RTWT0',
+    'RTWT1',
+    'RTWT'
+  ]);
+
+  const dtElem4Grid = dataTable(data.slice(node + 6, element + node + 6), [
+    'Element',
+    'TL',
+    'BL',
+    'BR',
+    'TR',
+    'MatNum'
+  ]);
+
+  return [dtNode, dtElem4Grid];
+} // ParseGridFile
+
+const WriteNodalFile = (NodalFileName, dtNodal) => {
+  const s = [' ***************** NODAL INFORMATION for MAIZSIM *******************************************************'];
+  s.push(`\t${dtNodal.columns.join('\t')}`)
+  dtNodal.forEach(Row => {
+    s.push(Row.map(col => col === 'Node' ? `\t${Row[col]}` :
+                          col === 'RTWT' ? `\t${Row[colo].toFixed(6)}` :
+                                           `\t${Row[colo].toFixed(2)}`
+    ));
+  });
+  fs.writeFileSync(NodalFileName, s.join('\n'));
+} // WriteNodalFile
+
+const CreateNodalTable = (dtGrid) => {
+  const dtNodal = dataTable(dtGrid, [
+    'Node',
+    'Nh',
+    'Ch',
+    'Nm',
+    'Nl',
+    'Cl',
+    'Cm',
+    'NH4',
+    'NO3',
+    'Tmpr',
+    'hNew',
+    'CO2',
+    'O2',
+    'RTWT',
+    'MatNum',
+    'Y'
+  ]);
+
+//  int nodes = dtGrid.Rows.Count;
+//  // create a table with zeroes as elements. Table has same number of rows as the grid table
+//  for (i = 0; i < nodes; i++)
+//  {
+//      dr = dtNodal.NewRow();
+//      dr[0]=i+1;
+//      for (j=1;j<dtNodal.Columns.Count;j++)
+//      {
+//          dr[j]=0;
+//      }
+//      DataRow r=dtGrid.Rows[i];
+//      dr["RTWT"] = r["RTWT"];
+//      dr["MatNum"]=r["MatNum"];
+//      dr["Y"] = r["Y"];
+//      dtNodal.Rows.Add(dr);
+//  }
+  return dtNodal;
+} // CreateNodalTable
 
 // Writes to the GridGenFile which is used by the fortran program
 const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop, GasBCBottom) => {
@@ -434,6 +513,5 @@ const grid_bnd = () => {
 } // grid_bnd
 
 datagen2(process.argv[2]);
-grid_bnd();
 
 console.timeEnd();
