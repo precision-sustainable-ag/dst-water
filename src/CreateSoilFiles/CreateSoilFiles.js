@@ -58,7 +58,7 @@ const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction
   const Segment = [];
   let dNumberOfNodes = 1 - Length / FirstInterval * (1 - IntervalRatio);
   dNumberOfNodes = Math.log(dNumberOfNodes) / Math.log(IntervalRatio) + 1;
-  const NumberOfNodes = dNumberOfNodes;
+  const NumberOfNodes = Math.round(dNumberOfNodes);
 
   Segment.push(StartPoint);
   Segment.push(StartPoint - FirstInterval * Direction); // those going down will decrease in value
@@ -80,9 +80,7 @@ const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction
 
       Segment.push(Distance);   // if you round up on number of nodes. you will go past the length.
                                 // This can be calculated as (dNumberOfNodes-NumberOfNodes)
-    }
-
-    if (Direction === -1) {
+    } else if (Direction === -1) {
       aux1 += FirstInterval * Math.pow(IntervalRatio, i - 1);
       let Distance = StartPoint + aux1;
       CalculatedLength += FirstInterval * Math.pow(IntervalRatio, i - 1);
@@ -90,13 +88,13 @@ const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction
 
       if (i === NumberOfNodes - 1) {
         if (Math.abs(Difference) > 0) {
-          Distance = Distance - Difference;
+          Distance -= Difference;
         }
       }
       Segment.push(Distance);
     }
   }
-  return Segment;
+  return Segment.map(e => +(e.toFixed(5)));
 } // CaclYNodes
 
 // This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
@@ -114,7 +112,7 @@ const CaclXNodes = (RowSpacing) => {
 
   let dNumberOfNodes = 1 - Length / FirstInterval * (1 - IntervalRatio);
   dNumberOfNodes = Math.log(dNumberOfNodes) / Math.log(IntervalRatio) + 1;
-  const NumberOfNodes = dNumberOfNodes;
+  const NumberOfNodes = Math.round(dNumberOfNodes);
 
   let CalculatedLength = FirstInterval;
   Segment.push(StartPoint, StartPoint + FirstInterval); // x axis increases in value
@@ -265,7 +263,7 @@ const datagen2 = (layerFile) => {
 
     const MasterSegment = [];
     const Segment1 = CaclYNodes(SurfaceIntervalRatio, mid, upper, FirstSurfaceInterval, 1).slice(0, -1);
-    const Segment2 = CaclYNodes(InternalIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => a - b).slice(0, -1); // TODO: proof
+    const Segment2 = CaclYNodes(InternalIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => b - a).slice(0, -1);
     MasterSegment.push(Segment1, Segment2);
 
     // need to store segment 1 and 2
@@ -275,7 +273,7 @@ const datagen2 = (layerFile) => {
         lower = ProfileDepth - Layer[0];  // the first item in the layer string is the depth
         const mid = (upper - lower) / 2.0;
         const Segment1 = CaclYNodes(InternalIntervalRatio, mid, upper, FirstInternalInterval, 1).slice(0, -1);
-        const Segment2 = CaclYNodes(SurfaceIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => a - b).slice(0, -1); // TODO: proof
+        const Segment2 = CaclYNodes(SurfaceIntervalRatio, mid, lower, FirstInternalInterval, -1).sort((a, b) => b - a).slice(0, -1);
         MasterSegment.push(Segment1, Segment2);
       });
     }
@@ -290,10 +288,6 @@ const datagen2 = (layerFile) => {
   }
 
   console.log(dtLayers);
-
-  const s = [];
-  s.push('IJ  E00  n00   NumNP  NumEl NMAt  BC  GasBCTop   GasBCBottom');
-  fs.writeFileSync('datagen2.dat.try', s.join('\n'));  
 } // datagen2
 
 // Writes to the GridGenFile which is used by the fortran program
@@ -302,42 +296,20 @@ const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop
   
   // calculate total number of y nodes
   let YnodeCount = 0;
-  for (let i = 0; i < YSegment.length; i++) {
-    const Seg = YSegment[i];
-    for (let j = 0; j < Seg.Count; j++) {
-      YnodeCount++;
-    }
-  }
+  YSegment.forEach(Seg => YnodeCount += Seg.length);
+
   s.push(` ${xSegment.length} 1   1  ${xSegment.length * YnodeCount}   ${(xSegment.length - 1) * (YnodeCount - 1)}  0  ${BottomBC}   ${GasBCTop}   ${GasBCBottom}`);
   s.push('x(j): ');
-  console.log(s.join('\n'));
-/*  
-  for (i=0;i<xSegment.Count();i++)
-  {
-      srOut.Write(" {0} ", xSegment[i]);
-  }
 
-  srOut.WriteLine();
-  srOut.WriteLine("y(i): 1->(NumNP-n00)/IJ+1");
-  for (i = 0; i < YSegment.Count; i++) 
-  {
-      ArrayList Seg = (ArrayList)YSegment[i];
-      for (j = 0; j < Seg.Count; j++)
-      {
-          srOut.Write(" {0} ",Seg[j]); // for some reason when this is a float you don't need to cast. I am not sure why
-      }
-      srOut.WriteLine();
+  s.push(` ${xSegment.join('  ')} `);
+  s.push('y(i): 1->(NumNP-n00)/IJ+1');
 
-  }
-
-
-  srOut.Close();
-*/  
+  YSegment.forEach(Seg => s.push(` ${Seg.join('  ')} `));
+  fs.writeFileSync('datagen2.dat', s.join('\n'));  
 } // WriteToGridGenFile
 
 const grid_bnd = () => {
   const format = (parms, formats) => {
-    const f = [];
     let row = '';
     formats.split(',').map(s => s.trim()).forEach(format => {
       if (/\d+x/i.test(format)) {
