@@ -3,6 +3,7 @@
 console.time();
 
 const fs = require('fs');
+const {execSync} = require('child_process');
 
 const readFile = (file, removeQuotes) => {
   let data = fs.readFileSync(file, 'utf8').trim();
@@ -50,6 +51,19 @@ if (arg('/GN') && arg('/GM')) {
 
 const GridFileRoot  = arg('/GN') || arg('/GM');
 const SoilFile      = arg('/SN') ? arg('/SN') + '.dat' : '';
+
+const CreateSoilFile = (dtLayer, SoilFileName) => {
+  // writes the file with input data for rosetta
+  const s = [];
+  s.push('  Matnum      sand     silt    clay     bd     om   TH33       TH1500 ');
+  let matnum = 1;
+  dtLayer.forEach(row => {
+    s.push(` ${matnum}\t ${row.Sand.toFixed(3)}\t ${row.Silt.toFixed(3)}\t ${row.Clay.toFixed(3)}\t ${row.BD.toFixed(3)}\t ${row.OM.toFixed(3)}\t ${row.TH33.toFixed(3)}\t  ${row.TH1500.toFixed(3)}\t '${row.InitType}'`);
+    matnum++;
+  });
+
+  fs.writeFileSync(SoilFileName, s.join('\n'));
+} // CreateSoilFile
 
 // This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
 // The first column is node, the second is the Y value. 
@@ -377,7 +391,7 @@ const datagen2 = (layerFile) => {
     // Now get Nodal Data. Need node numbers from grid table and other information from layer file
 
     CalculateRoot(dsGrid[0], dtElem4Grid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab); // WSun call root density and add a new column in nodal file
-    console.log(dtGrid[0].MatNum)
+
     dtNodal = CreateNodalTable(dtGrid);
 
     // Now add layer information to the nodal table
@@ -447,9 +461,9 @@ const datagen2 = (layerFile) => {
 
     // Now write out the nodal and element data 
     WriteNodalFile('run_01.nod', dtNodal, dtLayers);
+    CreateSoilFile(dtLayers, SoilFile);
+    execSync(`rosetta ${SoilFile}`);
   };
-
-  exit(dtLayers);
 } // datagen2
 
 const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab) => {
@@ -573,9 +587,10 @@ const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBC
 
   OutElem.forEach(row => {
     s.push(`\t${row.join('\t')}`);
+    i++;
   });
 
-  // s.push(...data.slice(6));
+  s.push(...data.slice(i).map(row => row.org));
   fs.writeFileSync(NewGridFile, s.join('\n'));
 } // WriteGridFile
 
