@@ -152,6 +152,12 @@ const dataTable = (data, columns) => {
     row = row || [];
     data[i] = new Proxy(row, {
       get(target, key) {
+        if (key === 'splice') { // https://stackoverflow.com/a/54136394/3903374
+          const origMethod = target.splice;
+          return function (...args) {
+            origMethod.apply(target, args);
+          }
+        }
         if (key in target) {
           return target[key];
         } else {
@@ -177,6 +183,14 @@ const dataTable = (data, columns) => {
   });
 
   data.columns = columns;
+
+  data.remove = (column) => {
+    const idx = columns.indexOf(column);
+    data.forEach(row => {
+      row.splice(idx, 1);
+    });
+    data.columns.splice(idx, 1);
+  }
 
   return data;
 } // dataTable
@@ -417,10 +431,25 @@ const datagen2 = (layerFile) => {
         row.Ch = TempCalc * PERCENT_C;
         row.Nh = TempCalc * PERCENT_N;
       });
+
+      dtLayers.forEach((row, i) => {
+        // we use MatNum here to select corresponding rows from each table
+        const myRow = dtNodal.filter((row) => row.MatNum === i + 1);
+        myRow.forEach(mrow => {
+          mrow.hNew = row.hNew;
+        });
+      });
     });
+
+    // drop MatNum column since it is not part of the Nodal file
+    dtNodal.remove('MatNum');
+    dtNodal.remove('Y');
+
+    // Now write out the nodal and element data 
+    WriteNodalFile('run_01.nod', dtNodal, dtLayers);
   };
 
-  console.log(dtLayers);
+  exit(dtLayers);
 } // datagen2
 
 const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab) => {
@@ -583,10 +612,14 @@ const WriteNodalFile = (NodalFileName, dtNodal) => {
   const s = [' ***************** NODAL INFORMATION for MAIZSIM *******************************************************'];
   s.push(`\t${dtNodal.columns.join('\t')}`)
   dtNodal.forEach(Row => {
-    s.push(Row.map(col => col === 'Node' ? `\t${Row[col]}` :
-                          col === 'RTWT' ? `\t${Row[col].toFixed(6)}` :
-                                           `\t${Row[col].toFixed(2)}`
-    ));
+    s.push(
+      '\t' + 
+      Row.map((col, i) =>
+        dtNodal.columns[i] === 'Node' ? `${col}` :
+        dtNodal.columns[i] === 'RTWT' ? `${col.toFixed(6)}` :
+                                        `${col.toFixed(2)}`
+      ).join('\t')
+    );
   });
   fs.writeFileSync(NodalFileName, s.join('\n'));
 } // WriteNodalFile
