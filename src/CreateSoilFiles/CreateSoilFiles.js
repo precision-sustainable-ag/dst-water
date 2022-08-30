@@ -11,13 +11,16 @@ const readFile = (file, removeQuotes) => {
     data = data.replace(/'/g, '');
   }
   
-  return data
-          .split(/[\n\r]+/)
-          .map(d =>
-            d.trim()
-             .split(/\s+/)
-             .map(e => Number.isFinite(+e) ? +e : e)
-          );
+  data = data.split(/[\n\r]+/);
+
+  data.forEach((row, i) => {
+    data[i] = row.trim()
+                .split(/\s+/)
+                .map(e => Number.isFinite(+e) ? +e : e);
+    data[i].org = row;
+  });
+
+  return data;
 } // readFile
 
 const arg = parm => {
@@ -154,6 +157,7 @@ const dataTable = (data, columns) => {
   });
 
   data.columns = columns;
+
   return data;
 } // dataTable
 
@@ -284,10 +288,94 @@ const datagen2 = (layerFile) => {
     grid_bnd();
 
     const dsGrid = ParseGridFile('Grid_bnd');
-  }
+    const dtNodal = dsGrid[0];
+    const dtElem4Grid = dsGrid[1];
+
+    // this selects a subset of the rows from the table where y=max(y)
+    // in C#:  myRow = dtNodal.Select("Y=MAX(Y)");
+    const maxY = Math.max(...dtNodal.map(e => e.Y));
+    const myRow = dtNodal.filter(e => e.Y === maxY);
+
+    let LowerDepth = 0;
+    let UpperDepth = 0;
+
+    // now select rows that match the upper and lower depths specified for each material (layer) in the layer file
+    dtLayers.forEach((myField, i) => {
+      // here we select one line of data (a string). Note that field array is a collection of objects.
+      // The of object is not stored.
+      // Thus we need to cast the FieldArray member as a string before assigning it to the string variable myField.
+      
+      // need separate selection criteria for first layer in order to be inclusive of both bottom and top values
+      // because of the use of <= or just <.
+      if (i === 0) {
+        UpperDepth = ProfileDepth;
+        LowerDepth = ProfileDepth - myField[0];
+      } else if (i > 0) {
+        UpperDepth = LowerDepth;
+        LowerDepth = ProfileDepth - myField[0];
+      }
+
+      // create a selection expression to select rows of the table that have "Y" values within the range of the layering scheme
+
+      let expression;
+      if (i === 0) {
+        expression = (row) => row.Y >= LowerDepth && row.Y <= UpperDepth;
+      } else {
+        expression = (row) => row.Y >= LowerDepth && row.Y < UpperDepth;
+      }
+
+      // select the rows falling within the ranges of depth for that layer
+      const myRow = dtNodal.filter(expression);
+
+      // standard method to loop within a DataTable
+      myRow.forEach(Row => Row.MatNum = i + 1);
+    });
+
+    dtElem4Grid.forEach(Row => {
+      const NodeBL = Row.BL;
+      const myRow = dtNodal.filter((row) => row.Node === NodeBL);
+      Row.MatNum = myRow[0][3];
+    });
+
+    WriteGridFile(dsGrid, 'run_01.grd', 'Grid_bnd', MatNum, BottomBC, GasBCTop, GasBCBottom);
+
+    exit(dtNodal)
+  };
 
   console.log(dtLayers);
 } // datagen2
+
+// This writes the grid file by taking items from the original file (template) and copying to the new file.
+// The grid data with the new material numbers come from the datatable. 
+
+const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBCTop, GasBCBottom) => {
+  const OutNode = dsGrid[0];
+  const OutElem = dsGrid[1];
+  const data = readFile(OldGridFile);
+  const s = [];
+  
+  let i = 0;
+  s.push(data[i++].org);
+  s.push(data[i++].org);
+  s.push(data[i++].org);
+  s.push(data[i++].org);
+
+
+  OutNode.forEach(row => {
+    s.push(`\t${row.join('\t')}`);
+    i++;
+  });
+
+  s.push(data[i++].org);
+  s.push(data[i++].org);
+
+  OutElem.forEach(row => {
+    s.push(`\t${row.join('\t')}`);
+  });
+
+  // s.push(...data.slice(6));
+  fs.writeFileSync(NewGridFile, s.join('\n'));
+} // WriteGridFile
 
 // This procedure reads the Grid file and extracts the grid 
 // the procedure creates a table to hold the grid data and fills it with data from the file.
@@ -323,8 +411,8 @@ const WriteNodalFile = (NodalFileName, dtNodal) => {
   s.push(`\t${dtNodal.columns.join('\t')}`)
   dtNodal.forEach(Row => {
     s.push(Row.map(col => col === 'Node' ? `\t${Row[col]}` :
-                          col === 'RTWT' ? `\t${Row[colo].toFixed(6)}` :
-                                           `\t${Row[colo].toFixed(2)}`
+                          col === 'RTWT' ? `\t${Row[col].toFixed(6)}` :
+                                           `\t${Row[col].toFixed(2)}`
     ));
   });
   fs.writeFileSync(NodalFileName, s.join('\n'));

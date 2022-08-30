@@ -1,0 +1,20 @@
+ Volume in drive R is OS
+ Volume Serial Number is 5265-03B4
+
+ Directory of R:\dst-water\src\CreateSoilFiles\test
+
+08/30/2022  08:56 AM    <DIR>          .
+08/30/2022  08:57 AM    <DIR>          ..
+08/30/2022  08:57 AM                 0 createError.log
+08/30/2022  08:57 AM               789 dataGen2.dat
+08/30/2022  08:57 AM                 0 dir.txt
+08/24/2022  08:05 AM               246 grid1.bat
+08/30/2022  08:57 AM            66,381 grid_bnd
+08/30/2022  08:57 AM               603 MeadIr_run_01.dat
+08/30/2022  08:57 AM                 0 MeadIr_run_01.soi
+08/30/2022  08:57 AM                 0 Rosetta.log
+08/30/2022  08:57 AM            30,385 run_01.grd
+08/24/2022  07:53 AM             3,712 run_01.lyr
+08/30/2022  08:57 AM            62,543 run_01.nod
+              11 File(s)        164,659 bytes
+               2 Dir(s)  817,190,264,832 bytes free

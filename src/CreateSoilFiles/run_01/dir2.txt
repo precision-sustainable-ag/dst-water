@@ -10,7 +10,8 @@
 08/24/2022  07:53 AM               362 BiologyDefault.bio
 08/30/2022  08:54 AM                 0 createError.log
 08/24/2022  07:55 AM            28,672 createSoilFiles_CO2.exe
-08/30/2022  08:54 AM                 0 dir.txt
+08/30/2022  08:54 AM             1,639 dir.txt
+08/30/2022  08:54 AM                 0 dir2.txt
 08/24/2022  07:53 AM               341 GasID.gas
 08/24/2022  07:57 AM               289 grid1.bat
 08/24/2022  07:53 AM                20 grid2.bat
@@ -30,5 +31,5 @@
 08/24/2022  07:53 AM               466 run_01.tim
 08/24/2022  07:53 AM               248 water.dat
 08/24/2022  07:53 AM               153 WaterBound.dat
-              25 File(s)        205,958 bytes
-               2 Dir(s)  817,191,538,688 bytes free
+              26 File(s)        207,597 bytes
+               2 Dir(s)  817,191,202,816 bytes free
