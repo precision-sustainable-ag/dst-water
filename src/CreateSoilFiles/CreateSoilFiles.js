@@ -61,6 +61,7 @@ const CreateSoilFile = (dtLayer, SoilFileName) => {
     s.push(` ${matnum}\t ${row.Sand.toFixed(3)}\t ${row.Silt.toFixed(3)}\t ${row.Clay.toFixed(3)}\t ${row.BD.toFixed(3)}\t ${row.OM.toFixed(3)}\t ${row.TH33.toFixed(3)}\t  ${row.TH1500.toFixed(3)}\t '${row.InitType}'`);
     matnum++;
   });
+  s.push('');
 
   fs.writeFileSync(SoilFileName, s.join('\n'));
 } // CreateSoilFile
