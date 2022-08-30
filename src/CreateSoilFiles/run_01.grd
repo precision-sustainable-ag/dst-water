@@ -1,6 +1,6 @@
 ***************** GRID GENERATOR INFORMATION **********************************************
 KAT   NumNP    NumEl   NumBP    IJ   NumMat
-  2     690     612      20     10      0
+  2     690     612     20     10     9  
    n           x          y      MatNum
 	1	0	200	1
 	2	0.75	200	1

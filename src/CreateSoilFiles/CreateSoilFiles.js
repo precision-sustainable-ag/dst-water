@@ -144,14 +144,34 @@ const CaclXNodes = (RowSpacing) => {
 
 // emulate C# DataTable
 const dataTable = (data, columns) => {
+  if (!data[0]) {
+    data = Array(data.length).fill().map(e => Array(columns.length).fill(0));
+  }
+
   data.forEach((row, i) => {
+    row = row || [];
     data[i] = new Proxy(row, {
       get(target, key) {
-        return key in target ? target[key] : target[columns.indexOf(key)];
+        if (key in target) {
+          return target[key];
+        } else {
+          const idx = columns.indexOf(key);
+          if (idx === -1) {
+            exit('Error: ' + key + '\n' + columns);
+          }
+          return target[idx];
+        }
       },
       set(target, key, value) {
-        if (Number.isFinite(key)) target[key] = value;
-        else target[columns.indexOf(key)] = value;
+        if (Number.isFinite(+key)) {
+          target[key] = value;
+        } else {
+          const idx = columns.indexOf(key);
+          if (idx === -1) {
+            exit('Error: ' + key + '\n' + columns);
+          }
+          target[idx] = value;
+        }
       }
     });
   });
@@ -288,13 +308,13 @@ const datagen2 = (layerFile) => {
     grid_bnd();
 
     const dsGrid = ParseGridFile('Grid_bnd');
-    const dtNodal = dsGrid[0];
+    let dtNodal = dsGrid[0];
     const dtElem4Grid = dsGrid[1];
 
     // this selects a subset of the rows from the table where y=max(y)
     // in C#:  myRow = dtNodal.Select("Y=MAX(Y)");
     const maxY = Math.max(...dtNodal.map(e => e.Y));
-    const myRow = dtNodal.filter(e => e.Y === maxY);
+    let myRow = dtNodal.filter(e => e.Y === maxY);
 
     let LowerDepth = 0;
     let UpperDepth = 0;
@@ -339,15 +359,168 @@ const datagen2 = (layerFile) => {
 
     WriteGridFile(dsGrid, 'run_01.grd', 'Grid_bnd', MatNum, BottomBC, GasBCTop, GasBCBottom);
 
-    exit(dtNodal)
+    const dtGrid = dsGrid[0];
+    // Now get Nodal Data. Need node numbers from grid table and other information from layer file
+
+    CalculateRoot(dsGrid[0], dtElem4Grid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab); // WSun call root density and add a new column in nodal file
+    console.log(dtGrid[0].MatNum)
+    dtNodal = CreateNodalTable(dtGrid);
+
+    // Now add layer information to the nodal table
+    // If we have only one layer there is no need to interpolate big error here, this code will never execute!!, Matnum is not likely to be one
+    // if (MatNum == 1)
+    // select MatNum==1
+    
+    myRow = dtNodal.filter(row => row.MatNum === 1);
+
+    const PERCENT_C = 0.58;
+    const PERCENT_N = 0.05;
+    myRow.forEach(row => {
+      // calculate Nh and Ch here. Need OM and BD.
+      row.NO3 = dtLayers[0].NO3; //initially it is ppm or g NO3 per 1,000,000 grams of soil (ug/g) 
+      row.Tmpr = dtLayers[0].Tmpr;
+      row.CO2 = dtLayers[0].CO2;
+      row.O2 = dtLayers[0].O2;
+      row.hNew = dtLayers[0].hNew;
+      row.NH4 = dtLayers[0].NH4;
+      const TempCalc = dtLayers[0].BD * 1.0e6   // gives ug per cm3
+                       * dtLayers[0].OM;        // gives ug OM cm3
+      row.Ch = TempCalc * PERCENT_C;            // gives ug organic C per cm3 soil
+      row.Nh = TempCalc * PERCENT_N;            // gives ug organic N per cm3 soil
+    });
+
+    dtLayers.forEach((row, i) => {
+      // we have only two regression equations for two or more intervals. I'm not sure if this will work for one or two layers
+      // may have to have dummy layers for that case
+      
+      let expression;
+      if (i === MatNum - 2) {
+        // in the last case we need to catch the bottom of the last layer as well.
+        // This will be filtered out if Y> is used
+        expression = (row) => row.Y <= dtLayers[i].Y_Mid && row.Y >= dtLayers[i + 1].Y_Mid;
+      } else {
+        expression = (row) => row.Y <= dtLayers[i].Y_Mid && row.Y >  dtLayers[i + 1].Y_Mid;
+      }
+
+      const myRow = dtNodal.filter(expression);
+
+      myRow.forEach(row => {
+        const dy = row.Y - dtLayers[i].Y_Mid;
+        // calculate Nh and Ch here. Need OM and BD.
+        row.NO3   = dtLayers[i].NO3   + dtLayers[i].NO3_Slope   * dy;
+        row.Tmpr  = dtLayers[i].Tmpr  + dtLayers[i].Tmpr_Slope  * dy;
+        row.CO2   = dtLayers[i].CO2   + dtLayers[i].CO2_Slope   * dy;
+        row.O2    = dtLayers[i].O2    + dtLayers[i].O2_Slope    * dy;
+        row.NH4   = dtLayers[i].NH4   + dtLayers[i].NH4_Slope   * dy;
+        const TempCalc = (dtLayers[i].BD + dtLayers[i].BD_Slope * dy) * 1.0e6
+                         * (dtLayers[i].OM + dtLayers[i].OM_Slope * dy);
+        row.Ch = TempCalc * PERCENT_C;
+        row.Nh = TempCalc * PERCENT_N;
+      });
+    });
   };
 
   console.log(dtLayers);
 } // datagen2
 
+const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab) => {
+  // parameters for root density calcs
+  // dx and dy are diffusion coefficients, d1x,d2x, etc are temporary variables
+  const difx = 10;
+  const dify = 100;
+  const M = 1;
+  const time = 2;
+  let TotalRTWT = 0;
+  const NodeArea = Array(5000).fill(0);
+  
+  // WSun add nodearea calculations
+  // dtNode.Columns.Add(new DataColumn("NodeArea", typeof(double)));
+  dtGrid.forEach(Dr => {
+    const i = Dr.TL;
+    const j = Dr.BL;
+    const k = Dr.BR;
+    const l = Dr.TR;
+
+    if (k === l) {
+      const CJ1 = dtNode[i - 1].X - dtNode[k - 1].X;
+      const CK1 = dtNode[j - 1].X - dtNode[i - 1].X;
+      const BJ1 = dtNode[k - 1].Y - dtNode[i - 1].Y;
+      const BK1 = dtNode[i - 1].Y - dtNode[j - 1].Y;
+
+      const AE1 = (CK1 * BJ1 - CJ1 * BK1) / 2.0;
+
+      NodeArea[i] += AE1 / 3.0;
+      NodeArea[j] += AE1 / 3.0;
+      NodeArea[k] += AE1 / 3.0;
+    } else {
+      const CJ1 = dtNode[i - 1].X - dtNode[k - 1].X;
+      const CK1 = dtNode[j - 1].X - dtNode[i - 1].X;
+      const BJ1 = dtNode[k - 1].Y - dtNode[i - 1].Y;
+      const BK1 = dtNode[i - 1].Y - dtNode[j - 1].Y;
+
+      const AE1 = (CK1 * BJ1 - CJ1 * BK1) / 2.0;
+
+      NodeArea[i] += AE1 / 3.0;
+      NodeArea[j] += AE1 / 3.0;
+      NodeArea[k] += AE1 / 3.0;
+
+      const CJ2 = dtNode[i - 1].X - dtNode[l - 1].X;
+      const CK2 = dtNode[k - 1].X - dtNode[i - 1].X;
+      const BJ2 = dtNode[l - 1].Y - dtNode[i - 1].Y;
+      const BK2 = dtNode[i - 1].Y - dtNode[k - 1].Y;
+      
+      const AE2 = (CK2 * BJ2 - CJ2 * BK2) / 2.0;
+
+      NodeArea[i] += AE2 / 3.0;
+      NodeArea[k] += AE2 / 3.0;
+      NodeArea[l] += AE2 / 3.0;
+    }
+  });
+
+  //dtNode.Columns.Add(new DataColumn("RTWT0", typeof(double))); //WSun RTWT0 represents relative number of root density (no relationship with any physical) 
+  //dtNode.Columns.Add(new DataColumn("RTWT1", typeof(double)));  // WSun RTWT1 represents the multiplication of RTWT0 and node area
+  dtNode.forEach(Dr => {
+    const Node = Dr.Node;
+    const x = Dr.X;
+    const y = ProfileDepth - Dr.Y;
+    Dr.RTWT0 = 0;
+    Dr.NodeArea = NodeArea[Node];
+
+    if (y <= PlantingDepth * 2.0 && x <= xRootExtent) {
+      const root2 = 1.0 / (4 * time) * (x * x / difx + y * y / dify);
+        
+      const root1 = M / (4.0 * 3.1415 * time * Math.sqrt(difx * dify)); 
+                          
+      Dr.RTWT0 = root1 * Math.exp(-root2); // need to drop the row at the end?
+                                           // RTWT = Dr["RTWT"];
+    }
+    Dr.RTWT1 = (dtNode[Node - 1].NodeArea) * (dtNode[Node - 1].RTWT0); // WSun RTWT1 represents the multiplication of RTWT0 and node area
+    TotalRTWT += Dr.RTWT1;// WSun TotalRTWT represents the sum of RTWT1
+  });
+
+  //Console.WriteLine("Total root weight: {0}\n", TotalRTWT);
+  //Find nodes and associated elements. 
+
+  // then find the center of the node to get a distance
+  // can get node numbers for elements from dtElement and x,y from dt Node
+  //calc roots as per x and y 
+  // first find centers of the elements where x< 20 and y< 20, 
+  // calculate roots at these xs and ys
+
+  // WSun Calculation the root density (RTWT) which read by SPUDSIM 
+  const rootweightperslab1 = (rootweightperslab / TotalRTWT);  // WSun  rootweightperslab1 represents the division of root weight per slab and Total RTWT
+
+  //dtNode.Columns.Add(new DataColumn("RTWT", typeof(double))); // WSun RTWT represents the root density which read by SPUDSIM
+  dtNode.forEach(Dr => {
+    const Node = Dr.Node;
+    Dr.RTWT = (dtNode[Node - 1].RTWT0) * rootweightperslab1;
+  });
+
+  return dtNode;
+} // CalculateRoot
+
 // This writes the grid file by taking items from the original file (template) and copying to the new file.
 // The grid data with the new material numbers come from the datatable. 
-
 const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBCTop, GasBCBottom) => {
   const OutNode = dsGrid[0];
   const OutElem = dsGrid[1];
@@ -357,9 +530,9 @@ const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBC
   let i = 0;
   s.push(data[i++].org);
   s.push(data[i++].org);
+  data[i][5] = MatNum;
+  s.push(`  ${data[i++].join('     ')}  `);
   s.push(data[i++].org);
-  s.push(data[i++].org);
-
 
   OutNode.forEach(row => {
     s.push(`\t${row.join('\t')}`);
@@ -419,7 +592,7 @@ const WriteNodalFile = (NodalFileName, dtNodal) => {
 } // WriteNodalFile
 
 const CreateNodalTable = (dtGrid) => {
-  const dtNodal = dataTable(dtGrid, [
+  const dtNodal = dataTable(Array(dtGrid.length), [
     'Node',
     'Nh',
     'Ch',
@@ -438,22 +611,13 @@ const CreateNodalTable = (dtGrid) => {
     'Y'
   ]);
 
-//  int nodes = dtGrid.Rows.Count;
-//  // create a table with zeroes as elements. Table has same number of rows as the grid table
-//  for (i = 0; i < nodes; i++)
-//  {
-//      dr = dtNodal.NewRow();
-//      dr[0]=i+1;
-//      for (j=1;j<dtNodal.Columns.Count;j++)
-//      {
-//          dr[j]=0;
-//      }
-//      DataRow r=dtGrid.Rows[i];
-//      dr["RTWT"] = r["RTWT"];
-//      dr["MatNum"]=r["MatNum"];
-//      dr["Y"] = r["Y"];
-//      dtNodal.Rows.Add(dr);
-//  }
+  dtGrid.forEach((row, i) => {
+    dtNodal[i].Node = i + 1;
+    dtNodal[i].RTWT = row.RTWT;
+    dtNodal[i].MatNum = row.MatNum;
+    dtNodal[i].Y = row.Y;
+  });
+
   return dtNodal;
 } // CreateNodalTable
 
