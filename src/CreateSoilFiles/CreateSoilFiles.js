@@ -1,20 +1,14 @@
 // will hopefully replace the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
 
-console.time();
+console.time('total time');
 
 const fs = require('fs');
 const {execSync} = require('child_process');
 const {readFile, arg, exit, error, dataTable} = require('./utilities');
 
-if (arg('/GN') && arg('/GM')) {
-  error('Cannot use GM and GN together');
-}
-
-const GridFileRoot  = arg('/GN') || arg('/GM');
-const SoilFile      = arg('/SN') ? arg('/SN') + '.dat' : '';
-
+// ____________________________________________________________________________________________________________________________________
+// writes the file with input data for rosetta
 const CreateSoilFile = (dtLayer, SoilFileName) => {
-  // writes the file with input data for rosetta
   const s = [];
   s.push('  Matnum      sand     silt    clay     bd     om   TH33       TH1500 ');
   let matnum = 1;
@@ -27,7 +21,8 @@ const CreateSoilFile = (dtLayer, SoilFileName) => {
   fs.writeFileSync(SoilFileName, s.join('\n'));
 } // CreateSoilFile
 
-// This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
+// ____________________________________________________________________________________________________________________________________
+// Returns a vector of values (Segments)for the increments along a line from the starting point to the Length
 // The first column is node, the second is the Y value. 
 // This method uses a geometric progression where IntervalRatio is the ratio between two depths
 // direction is 1 for up to down and -1 for down to up
@@ -76,7 +71,8 @@ const CaclYNodes = (IntervalRatio, Length, StartPoint, FirstInterval,  Direction
   return Segment.map(e => +(e.toFixed(5)));
 } // CaclYNodes
 
-// This routine returns a vector of values (Segments)for the increments along a line from the starting point to the Length
+// ____________________________________________________________________________________________________________________________________
+// Returns a vector of values (Segments)for the increments along a line from the starting point to the Length
 // The first column is node, the second is the Y value. 
 // This method uses a geometric progression where IntervalRatio is the ratio between two depths
 // Calculates the nodes for the X dimension (across row). The only input it RowSpacing
@@ -118,7 +114,8 @@ const CaclXNodes = (RowSpacing) => {
   return Segment;
 } // CaclXNodes
 
-const datagen2 = (layerFile) => {
+// ____________________________________________________________________________________________________________________________________
+const createSoilFiles = (layerFile) => {
   const data = readFile(layerFile, true);
   
   const [SurfaceIntervalRatio, FirstSurfaceInterval, InternalIntervalRatio, FirstInternalInterval] = data[1];
@@ -208,6 +205,8 @@ const datagen2 = (layerFile) => {
   // 2-If we use a template for the grid file we need to either parse the existing grid file or use an existing data2Gen file. In this 
   // case we have the grid information, we only need to fill in the material numbers
 
+  const GridFileRoot  = arg('/GN') || arg('/GM');
+
   if (GridFileRoot) {
     // we will create a gridgen file and use it to call the mesh generator 
     // This code will create the input file.
@@ -294,7 +293,7 @@ const datagen2 = (layerFile) => {
       Row.MatNum = myRow[0][3];
     });
 
-    WriteGridFile(dsGrid, 'run_01.grd', 'Grid_bnd', MatNum, BottomBC, GasBCTop, GasBCBottom);
+    WriteGridFile(dsGrid, `${GridFileRoot}.grd`, 'Grid_bnd', MatNum, BottomBC, GasBCTop, GasBCBottom);
 
     const dtGrid = dsGrid[0];
     // Now get Nodal Data. Need node numbers from grid table and other information from layer file
@@ -369,12 +368,17 @@ const datagen2 = (layerFile) => {
     dtNodal.remove('Y');
 
     // Now write out the nodal and element data 
-    WriteNodalFile('run_01.nod', dtNodal, dtLayers);
-    CreateSoilFile(dtLayers, SoilFile);
-    execSync(`rosetta ${SoilFile}`);
-  };
-} // datagen2
+    WriteNodalFile(`${GridFileRoot}.nod`, dtNodal, dtLayers);
 
+    const SoilFile = arg('/SN') ? arg('/SN') + '.dat' : '';
+    CreateSoilFile(dtLayers, SoilFile);
+    console.time('rosetta');
+    execSync(`rosetta ${SoilFile}`);
+    console.timeEnd('rosetta');
+  };
+} // createSoilFiles
+
+// ____________________________________________________________________________________________________________________________________
 const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent, rootweightperslab) => {
   // parameters for root density calcs
   // dx and dy are diffusion coefficients, d1x,d2x, etc are temporary variables
@@ -471,7 +475,8 @@ const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent,
   return dtNode;
 } // CalculateRoot
 
-// This writes the grid file by taking items from the original file (template) and copying to the new file.
+// ____________________________________________________________________________________________________________________________________
+// Writes the grid file by taking items from the original file (template) and copying to the new file.
 // The grid data with the new material numbers come from the datatable. 
 const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBCTop, GasBCBottom) => {
   const OutNode = dsGrid[0];
@@ -503,8 +508,9 @@ const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBC
   fs.writeFileSync(NewGridFile, s.join('\n'));
 } // WriteGridFile
 
-// This procedure reads the Grid file and extracts the grid 
-// the procedure creates a table to hold the grid data and fills it with data from the file.
+// ____________________________________________________________________________________________________________________________________
+// Reads the Grid file and extracts the grid.
+// Creates a table to hold the grid data and fills it with data from the file.
 const ParseGridFile = (GridFile) => {
   const data = readFile(GridFile);
   const [_, node, element] = data[2];
@@ -532,6 +538,7 @@ const ParseGridFile = (GridFile) => {
   return [dtNode, dtElem4Grid];
 } // ParseGridFile
 
+// ____________________________________________________________________________________________________________________________________
 const WriteNodalFile = (NodalFileName, dtNodal) => {
   const s = [' ***************** NODAL INFORMATION for MAIZSIM *******************************************************'];
   s.push(`\t${dtNodal.columns.join('\t')}`)
@@ -548,6 +555,7 @@ const WriteNodalFile = (NodalFileName, dtNodal) => {
   fs.writeFileSync(NodalFileName, s.join('\n'));
 } // WriteNodalFile
 
+// ____________________________________________________________________________________________________________________________________
 const CreateNodalTable = (dtGrid) => {
   const dtNodal = dataTable(Array(dtGrid.length), [
     'Node',
@@ -578,6 +586,7 @@ const CreateNodalTable = (dtGrid) => {
   return dtNodal;
 } // CreateNodalTable
 
+// ____________________________________________________________________________________________________________________________________
 // Writes to the GridGenFile which is used by the fortran program
 const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop, GasBCBottom) => {
   const s = ['IJ  E00  n00   NumNP  NumEl NMAt  BC  GasBCTop   GasBCBottom'];
@@ -596,6 +605,7 @@ const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop
   fs.writeFileSync('datagen2.dat', s.join('\n'));  
 } // WriteToGridGenFile
 
+// ____________________________________________________________________________________________________________________________________
 const grid_bnd = () => {
   const format = (parms, formats) => {
     let row = '';
@@ -721,6 +731,12 @@ const grid_bnd = () => {
   fs.writeFileSync('grid_bnd', s.join('\n'));
 } // grid_bnd
 
-datagen2(process.argv[2]);
+// ____________________________________________________________________________________________________________________________________
 
-console.timeEnd();
+if (arg('/GN') && arg('/GM')) {
+  error('Cannot use GM and GN together');
+}
+
+createSoilFiles(process.argv[2]);
+
+console.timeEnd('total time');
