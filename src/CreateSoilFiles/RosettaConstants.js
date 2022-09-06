@@ -20278,4 +20278,14 @@ const newunsk = [
   0x78,0x5e,0x99,0xbf
 ];
 
-module.exports = {txt_rosetta, tsssc, tssscbd, tssscbdth33, tssscbdth3315, twssc, twsscbd, twsscbdth33, twsscbdth3315, newunsk};
+const ANN_MODEL = {
+  TXT: 0,
+  SSC: 1,
+  SSCBD: 2,
+  SSCBDTH33: 3,
+  SSCBDTH3315: 4,
+  ANN_NONE: 5,  // hack!
+  BPM: 6,    
+};
+
+module.exports = {txt_rosetta, tsssc, tssscbd, tssscbdth33, tssscbdth3315, twssc, twsscbd, twsscbdth33, twsscbdth3315, newunsk, ANN_MODEL};
