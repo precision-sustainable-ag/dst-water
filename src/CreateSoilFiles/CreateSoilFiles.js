@@ -433,8 +433,6 @@ const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent,
     }
   });
 
-  //dtNode.Columns.Add(new DataColumn("RTWT0", typeof(double))); //WSun RTWT0 represents relative number of root density (no relationship with any physical) 
-  //dtNode.Columns.Add(new DataColumn("RTWT1", typeof(double)));  // WSun RTWT1 represents the multiplication of RTWT0 and node area
   dtNode.forEach(Dr => {
     const Node = Dr.Node;
     const x = Dr.X;
@@ -454,7 +452,6 @@ const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent,
     TotalRTWT += Dr.RTWT1;// WSun TotalRTWT represents the sum of RTWT1
   });
 
-  //Console.WriteLine("Total root weight: {0}\n", TotalRTWT);
   //Find nodes and associated elements. 
 
   // then find the center of the node to get a distance
@@ -521,11 +518,11 @@ const ParseGridFile = (GridFile) => {
     'Y',
     'MatNum',
     'NodeArea',
-    'RTWT0',
-    'RTWT1',
-    'RTWT'
+    'RTWT0',    // WSun RTWT0 represents relative number of root density (no relationship with any physical) 
+    'RTWT1',    // WSun RTWT1 represents the multiplication of RTWT0 and node area
+    'RTWT'      // WSun RTWT represents the root density which read by SPUDSIM
   ]);
-
+ 
   const dtElem4Grid = dataTable(data.slice(node + 6, element + node + 6), [
     'Element',
     'TL',
