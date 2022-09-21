@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 // will hopefully replace the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
 
 console.time('total time');
@@ -5,6 +7,11 @@ console.time('total time');
 const fs = require('fs');
 const {execSync} = require('child_process');
 const {readFile, arg, exit, error, dataTable} = require('./utilities');
+
+const unindent = s => {
+  const spaces = ' '.repeat(s.replace(/^[\n\r]+/, '').match(/^ +/)[0].length);
+  return s.replace(RegExp(`^${spaces}`, 'mg'), '').trim() + '\n';
+} // unindent
 
 // ____________________________________________________________________________________________________________________________________
 // writes the file with input data for rosetta
@@ -372,9 +379,55 @@ const createSoilFiles = (layerFile) => {
 
     const SoilFile = arg('/SN') ? arg('/SN') + '.dat' : '';
     CreateSoilFile(dtLayers, SoilFile);
+    
+//    console.time('rosetta');
+//    execSync(`rosetta ${SoilFile}`);
+//    console.timeEnd('rosetta');
+//
     console.time('rosetta');
-    execSync(`rosetta ${SoilFile}`);
-    console.timeEnd('rosetta');
+    const soildata = readFile(SoilFile).slice(1);
+    
+    const rosettaData = soildata.map(row => {
+      row = [...row];
+      row.splice(0, 1);  // remove Matnum
+      row.splice(4, 1);  // remove om
+      row.splice(6, 1);  // remove 'w'
+      row[0] *= 100;     // sand
+      row[1] *= 100;     // silt
+      row[2] *= 100;     // clay
+      delete row.org;
+      return row;
+    });
+
+    axios
+      .post(`https://www.handbook60.org/api/v1/rosetta/1`, {
+        soildata: rosettaData,
+      })
+      .then(data => {
+        let s = '           *** Material information ****                                                                   g/g  \r\n';
+        s += '   thr       ths         tha       th      Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt    InitType\r\n';
+
+        data.data.van_genuchten_params.forEach((d, i) => {
+          let [theta_r, theta_s, alpha, npar, ksat] = d;
+
+          alpha = 10 ** alpha;
+          npar  = 10 ** npar;
+          ksat  = 10 ** ksat;
+
+          // eslint-disable-next-line no-unused-vars
+          const [Matnum, sand, silt, clay, bd, om, TH33, TH1500, inittype] = soildata[i];
+
+          s += `    ${theta_r.toFixed(3)}    ${theta_s.toFixed(3)}    ${theta_r.toFixed(3)}    ${theta_s.toFixed(3)}    ${alpha.toFixed(5)}    ${npar.toFixed(5)}    ${ksat.toFixed(3)}    ${ksat.toFixed(3)}    ${theta_s.toFixed(3)}    ${bd.toFixed(2)} ${om.toFixed(5)}    ${sand.toFixed(2)}    ${silt.toFixed(2)}   ${inittype}\r\n`;
+        });
+
+        fs.writeFileSync(SoilFile.replace('dat', 'soi'), s);
+        console.timeEnd('rosetta');
+      })
+      .catch(error => {
+        console.error(error);
+      }
+    );
+
   };
 } // createSoilFiles
 

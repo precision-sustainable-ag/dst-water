@@ -4,8 +4,6 @@ import {useSelector, useDispatch} from 'react-redux';
 
 import {get, set} from './store/store';
 
-import {Input} from './components/Inputs';
-
 import './App.css';
 
 import * as XLSX from 'xlsx';
@@ -60,13 +58,13 @@ const Worksheet = () => {
   const noe = (n, round=16) => (+n).toFixed(round).replace(/0+$/, '').replace(/\.$/, '');
 
   const dbRecords = (table, id) => {
-    const key = table === 'soil'          ? 'soilFile'  :
-                table === 'gridratio'     ? 'SoilFile'  :
+    const key = table === 'soil'          ? 'soilfile'  :
+                table === 'gridratio'     ? 'soilfile'  :
                 table === 'dispersivity'  ? 'texturecl' :
-                table === 'climate'       ? 'ClimateID' :
-                table === 'weather'       ? 'ClimateID' :
-                table === 'variety'       ? 'Hybrid'    :
-                                            'ID';
+                table === 'climate'       ? 'climateid' :
+                table === 'weather'       ? 'climateid' :
+                table === 'variety'       ? 'hybrid'    :
+                                            'id';
 
     if (!xl[table]) {
       alert(`dbRecords('${table}')`);
@@ -77,20 +75,20 @@ const Worksheet = () => {
   } // dbRecords
 
   const dbRecord = (table, id) => {
-    const key = table === 'Soil'          ? 'soilFile'  :
-                table === 'GridRatio'     ? 'SoilFile'  :
+    const key = table === 'Soil'          ? 'soilfile'  :
+                table === 'GridRatio'     ? 'soilfile'  :
                 table === 'Dispersivity'  ? 'texturecl' :
-                table === 'Climate'       ? 'ClimateID' :
-                table === 'Weather'       ? 'ClimateID' :
-                table === 'Variety'       ? 'Hybrid'    :
-                                            'ID';
+                table === 'Climate'       ? 'climateid' :
+                table === 'Weather'       ? 'climateid' :
+                table === 'Variety'       ? 'hybrid'    :
+                                            'id';
     const data = xl[table];
     console.log(data);
     console.log(id);
-    const recs = data.filter(d => (d[key] || '').toLowerCase() === id.toLowerCase());
+    const recs = data.filter(d => (d[key] || '').toLowerCase().trim() === id.toLowerCase().trim());
 
     if (!recs.length) {
-      // console.log(data);
+      console.log(data);
       alert(`Unknown: ${table} ${id}`);
     } else if (recs.length > 1) {
       return recs;
@@ -560,7 +558,19 @@ const App = () => {
       // console.log(wb.SheetNames);
 
       Object.keys(xl).forEach(key => {
-        dispatch(set.xl[key](XLSX.utils.sheet_to_json(wb.Sheets[key])));
+        const data = XLSX.utils.sheet_to_json(wb.Sheets[key]).map(row => {
+          Object.keys(row).forEach(key => {
+            if (key !== key.toLowerCase()) {
+              row[key.toLowerCase()] = row[key];
+              delete row[key];
+            }
+          });
+          return row;
+        });
+
+        console.log(data);
+
+        dispatch(set.xl[key](data));
       });
       
       dispatch(set.site(wb.Sheets.Description.A2.v));

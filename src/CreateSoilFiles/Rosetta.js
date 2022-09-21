@@ -59,7 +59,7 @@ const is_valid_th33 = ({th33}) => {
 } // is_valid_th33
 
 const is_valid_th1500 = ({th1500, th33}) => {
-  return th1500 >= MINTH15 && th1500 <= MINTH15 && th1500 > th33;
+  return th1500 >= MINTH15 && th1500 <= MAXTH15 && th1500 <= th33;
 } // is_valid_th1500
 
 const is_valid_gravel = ({gravel}) => {
@@ -224,9 +224,11 @@ const make_Estimate = (ann_model, rosinput, rosoutput) => {
     // cases are checked for SSCBDTH1500, 3 for SSCBDTH33, etc.
     let res = 0;
 
+    console.log(ann_model, ANN_MODEL.SSCBDTH3315);
     switch (ann_model) {
       case ANN_MODEL.SSCBDTH3315:
         if (!is_valid_th1500(rosinput)) res |= TH1500_INVALID;
+        console.log(is_valid_th1500(rosinput));
       // eslint-disable-next-line no-fallthrough
       case ANN_MODEL.SSCBDTH33:
         if (!is_valid_th33(rosinput)) res |= TH33_INVALID;
@@ -242,40 +244,31 @@ const make_Estimate = (ann_model, rosinput, rosoutput) => {
         return (MODEL_INVALID);
     }
 
+    // console.log(res, SSC_INVALID);
     if (res) {
       // we do not have valid input data
-      return(res);
+      return res;
     } else {
-/* TODO
+
       let ann_index = ann_model - 1; // this is because TXT model is #0
 
-      MATRIX *bootstrap_output_vg4=NULL;
-      VECTOR *average_vg4=new VECTOR(4);
-      VECTOR *std_vg4=new VECTOR(4);
-      MATRIX *corr_vg4=new MATRIX(4,4);
-      MATRIX *bootstrap_output_ks=NULL;
-      VECTOR *average_ks=new VECTOR(1);
-      VECTOR *std_ks=new VECTOR(1);
-      MATRIX *corr_ks=new MATRIX(1,1);
+      // MATRIX *bootstrap_output_vg4=NULL;
+      // VECTOR *average_vg4=new VECTOR(4);
+      // VECTOR *std_vg4=new VECTOR(4);
+      // MATRIX *corr_vg4=new MATRIX(4,4);
+      // MATRIX *bootstrap_output_ks=NULL;
+      // VECTOR *average_ks=new VECTOR(1);
+      // VECTOR *std_ks=new VECTOR(1);
+      // MATRIX *corr_ks=new MATRIX(1,1);
 
       // this is where it all happens, first retention, then ks
-      bootstrap_output_vg4=nn_model_ret[ann_index].nn_forward(&rosinput);
-      nn_model_ret[ann_index].calc_avg(bootstrap_output_vg4,average_vg4,std_vg4,corr_vg4);
-      bootstrap_output_ks=nn_model_ks[ann_index].nn_forward(&rosinput);
-      nn_model_ks[ann_index].calc_avg(bootstrap_output_ks,average_ks,std_ks,corr_ks);
-      transfer(average_vg4,std_vg4,corr_vg4,average_ks,std_ks,corr_ks,&rosoutput);
-      rosoutput.ann_model=ann_model;
-
-      delete corr_vg4;
-      delete bootstrap_output_vg4;
-      delete average_vg4;
-      delete std_vg4;
-      delete bootstrap_output_ks;
-      delete average_ks;
-      delete std_ks;
-      delete corr_ks;
-*/
-
+      console.log(nn_model_ret[ann_index])
+      const bootstrap_output_vg4 = nn_forward(nn_model_ret[ann_index], rosinput);
+      // nn_model_ret[ann_index].calc_avg(bootstrap_output_vg4,average_vg4,std_vg4,corr_vg4);
+      // bootstrap_output_ks=nn_model_ks[ann_index].nn_forward(&rosinput);
+      // nn_model_ks[ann_index].calc_avg(bootstrap_output_ks,average_ks,std_ks,corr_ks);
+      // transfer(average_vg4,std_vg4,corr_vg4,average_ks,std_ks,corr_ks,&rosoutput);
+      // rosoutput.ann_model=ann_model;
     }
   } // else for ANN models
 
@@ -318,10 +311,10 @@ const make_Estimate = (ann_model, rosinput, rosoutput) => {
     return VG4_INVALID;
   }
   // normalize unsks
-  rosoutput.unsks=pow(10.0,rosoutput.unsks);
+  rosoutput.unsks = Math.pow(10.0, rosoutput.unsks);
 
   // success
-  return(0);
+  return 0;
 } // make_Estimate
 
 const rosetta = (file) => {
@@ -355,6 +348,10 @@ const rosetta = (file) => {
     const res = make_Estimate(ann_model, row, rosoutput);
   });
 } // rosetta
+
+const nn_model_ret = [twssc, twsscbd, twsscbdth33, twsscbdth3315];
+const nn_model_ks = [tsssc, tssscbd, tssscbdth33, tssscbdth3315];
+const nn_model_unsk = newunsk;
 
 rosetta('MeadIr_run_01.dat');
 
