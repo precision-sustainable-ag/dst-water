@@ -8,6 +8,8 @@ import './App.css';
 
 import * as XLSX from 'xlsx';
 
+import {createSoilFiles} from './CreateSoilFiles';
+
 function ExcelDateToJSDate(serial) { // https://stackoverflow.com/a/65472305/3903374
   if (/\//.test(serial)) {
     return serial;
