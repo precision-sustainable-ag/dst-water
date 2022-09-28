@@ -1,3 +1,5 @@
+// replaces the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
+
 const axios = require('axios');
 const fs = require('fs');
 const XLSX = require('xlsx');
@@ -8,6 +10,11 @@ const site = 'run_01';
 
 // const wb = XLSX.readFile('kansas inputs.xlsx');
 // const site = 'CULI05';
+
+const unindent = (spaces, s) => {
+  const rep = ' '.repeat(s.replace(/^[\n\r]+/, '').match(/^ +/)[0].length);
+  return s.replace(RegExp(`^${rep}`, 'mg'), ' '.repeat(spaces + 1)).trim() + '\n';
+} // unindent
 
 const ExcelDateToJSDate = (serial) => { // https://stackoverflow.com/a/65472305/3903374
   if (/\//.test(serial)) {
@@ -50,6 +57,7 @@ const xl = {
   Biology:        [],
   Climate:        [],
   Fertilization:  [],
+  Tillage:        [],
   GridRatio:      [],
   Irrig:          [],
   Drip:           [],
@@ -274,7 +282,7 @@ const Worksheet = () => {
     const fertRecs = dbRecords('Fertilization', site);
     let s = '';
     if (fertRecs.length) {
-      s += `
+      s += unindent(0, `
         *** Script for management practices fertilizer, residue and tillage
         [N Fertilizer]
         ****Script for chemical application module  *******mg/cm2= kg/ha* 0.01*rwsp*eomult*100
@@ -282,7 +290,7 @@ const Worksheet = () => {
          ${fertRecs.length}
         mAppl is manure, lAppl is litter. Apply as mg/cm2 of slab same units as N
         tAppl(i)  AmtAppl(i) depth(i) lAppl_C(i) lAppl_N(i)  mAppl_C(i) mAppl_N(i)  (repeat these 3 lines for the number of fertilizer applications)
-      `;
+      `);
 
       // fert data are in the rs record set
       const factor = 0.01 * maxX / 100;  // m2 of slab
@@ -291,45 +299,66 @@ const Worksheet = () => {
         // area of slab m2/slab x kg/ha x 1 ha/10000 m2 *1e6 mg/kg = mg/slab
         const amount = +(rec.amount * factor / 10000 * 1000000).toFixed(4);
         const depth = rec.depth;
-        const sC = rec.C * factor / 10000 * 1000000;
-        const sN = rec.N * factor / 10000 * 1000000;
-        const date1 = dateFormat(ExcelDateToJSDate(rec.Date), 'mm/dd/yyyy');
-        s += cols(date1, amount, +depth, sC, sN) + '\n';
+        const L_C = rec.l_c * factor / 10000 * 1000000;  // litter
+        const L_N = rec.l_n * factor / 10000 * 1000000;
+        const M_C = rec.m_c * factor / 10000 * 1000000;  // manure
+        const M_N = rec.m_n * factor / 10000 * 1000000;
+        const date1 = dateFormat(ExcelDateToJSDate(rec.date), 'mm/dd/yyyy');
+        s += cols(date1, amount, depth, L_C, L_N, M_C, M_N) + '\n';
       });
     } else {
-      s += `
+      s += unindent(0, `
         ****Script for chemical application module  *******mg/cm2= kg/ha* 0.01*rwsp*eomult*100
         Number of Fertilizer applications (max=25) mappl is in total mg N applied to grid
         (1 kg/ha = 1 mg/m2/width of application) application divided by
         width of grid in cm is kg ha-1
-        0
+         0
         No fertilization
-      `;
+      `);
     }
 
-    s += `
+    s += unindent(0, `
       [Residue]
       ****Script for residue/mulch application module
       **** Residue amount can be thickness ('t') or mass ('m')   ***
       application  1 or 0, 1(yes) 0(no)
-    `;
+    `);
 
     // TODO:  Why iterate above but not here?
     if (fertRecs[0].date_residue || (fertRecs[0]['rate (t/ha or  cm)'] && fertRecs[0]['rate (t/ha or  cm)'] != 0)) {
       const date2 = dateFormat(fertRecs[0]['date_residue'], 'mm/dd/yyyy');
-      s += `
+      s += unindent(0, `
         1
         tAppl_R (i)    't' or 'm'      Mass (gr/m2) or thickness (cm)    vertical layers
         ---either thickness  or Mass
         ${cols(date2, fertRecs[0]['type(t or m)'], fertRecs[0]['rate (t/ha or  cm)'], fertRecs[0]['vertical layers'])}
-      `;
+      `);
     } else {
-      s += '0';
+      s += '0\n';
     }
 
-    s += '[Tillage]';
-    s += '1: Tillage , 0: No till';
-    s += 'TODO';
+    const tillageRec = dbRecord('Tillage', descRec.tillage);
+    s += unindent(0, `
+      [Tillage]
+      1: Tillage , 0: No till
+      ${cols(tillageRec['till(1/0)'])}
+    `);
+
+    if (tillageRec['till(1/0)'] == 1) {
+      const sowDate = ExcelDateToJSDate(dbRecord('Init', site).sowing);
+      const tillDate = sowDate;
+      tillDate.setDate(sowDate.getDate() - tillageRec.daysbeforeplanting);
+
+      const startDate = ExcelDateToJSDate(dbRecord('Time', site).startdate);
+
+      if (tillDate <= startDate) {
+        exit('tillage too close to start date, please rechoose');
+      }
+      s += unindent(0, `
+        till_Date   till_Depth
+        ${cols(dateFormat(tillDate), tillageRec.depth)}
+      `);
+    }
 
     return output(`writeMan: ${path}`, s);
   } // WriteMan
@@ -342,7 +371,7 @@ const Worksheet = () => {
 
     const gridRec = dbRecord('GridRatio', soilFile);
     
-    let s = `
+    let s = unindent(0, `
       surface ratio    internal ratio: ratio of the distance between two neighboring nodes
       ${cols(gridRec.SR1, gridRec.IR1, gridRec.SR2, gridRec.IR2)}
       Row Spacing
@@ -353,13 +382,14 @@ const Worksheet = () => {
       for the  (water boundary code for bottom layer (for all bottom nodes) 1 constant -2 seepage face,  7 drainage
       ${cols(gridRec.BottomBC, gridRec.GasBCTop, gridRec.GasBCBottom)}
        Bottom depth Init Type  OM (%/100)   no3(ppm)       NH4         hNew       Tmpr     CO2     O2    Sand     Silt    Clay     BD     TH33     TH1500  thr ths tha th  Alfa    n   Ks  Kk  thk
-       cm         w/m              Frac      ppm          ppm           cm         0C     ppm   ppm  ----  fraction---     g/cm3    cm3/cm3   cm3/cm3\n`;
+       cm         w/m              Frac      ppm          ppm           cm         0C     ppm   ppm  ----  fraction---     g/cm3    cm3/cm3   cm3/cm3
+    `);
 
     // now add soil properties
     const soilRecs = dbRecords('Soil', soilFile);
 
     soilRecs.forEach(rec => {
-      s += cols(rec['bottom depth'], rec['init type'], noe(rec['om (%/100)'], 5), noe(rec['no3 (ppm)'], 5), rec['nh4'], rec['hnew'], rec['tmpr'], rec['co2(ppm)'], rec['o2(ppm)'], rec['sand'] / 100, rec['silt'] / 100, rec['clay'] / 100, rec['bd'], rec['th33'], rec['th1500'], rec['thr'], rec['ths'], rec['tha'], rec['th'], rec['alfa'], rec['n'], rec['ks'], rec['kk'], rec['thk']) + '\n';
+      s += ' ' + cols(rec['bottom depth'], rec['init type'], noe(rec['om (%/100)'], 5), noe(rec['no3 (ppm)'], 5), rec['nh4'], rec['hnew'], rec['tmpr'], rec['co2(ppm)'], rec['o2(ppm)'], rec['sand'] / 100, rec['silt'] / 100, rec['clay'] / 100, rec['bd'], rec['th33'], rec['th1500'], rec['thr'], rec['ths'], rec['tha'], rec['th'], rec['alfa'], rec['n'], rec['ks'], rec['kk'], rec['thk']) + '\n';
     });
     
     return output(`writeLayer: ${path}`, s);
@@ -372,16 +402,20 @@ const Worksheet = () => {
     const timeRec = dbRecord('Time', site);
     const date1 = dateFormat(ExcelDateToJSDate(timeRec.startDate));
     const date2 = dateFormat(ExcelDateToJSDate(timeRec.EndDate));
-  
-    return output(`writeTime: ${path}`, `
+
+    let s = unindent(0, `
       *** SYNCHRONIZER INFORMATION *****************************
       Initial time       dt       dtMin     DMul1    DMul2    tFin
-      '${date1}'   ${timeRec.dt}        ${noe(timeRec.dtMin)}     ${timeRec.DMul1}           ${timeRec.DMul2}          '${date2}'
+      ${cols(date1, timeRec.dt, noe(timeRec.dtMin), timeRec.DMul1, timeRec.DMul2, date2)}
       Output variables, 1 if true  Daily    Hourly
-       ${timeRec.Daily}             ${timeRec.Hourly}
+      ${cols(timeRec.Daily, timeRec.Hourly)}
        Daily       Hourly   Weather data frequency. if daily enter 1   0; if hourly enter 0  1  
-       ${timeRec.WeatherDaily}             ${timeRec.WeatherHourly}
+      ${cols(timeRec.WeatherDaily, timeRec.WeatherHourly)}
+      RunToEnd  - if 1 model continues after crop maturity to end time in time file
+      ${cols(timeRec.runtoend)}
     `);
+  
+    return output(`writeTime: ${path}`, s);
   } // WriteTime
 
   const WriteVar = () => { // TODO: 0.0001059 becomes 0.000106.  May not matter
@@ -395,26 +429,26 @@ const Worksheet = () => {
       Corn growth simulation for  ${descRec.Hybrid}   variety 
        Juvenile   Daylength   StayGreen  LA_min  Rmax_LTAR              Rmax_LTIR                Phyllochrons from
        leaves     Sensitive               Leaf tip appearance   Leaf tip initiation       TassellInit
-      ${varietyRec.JuvenileLeaves}            ${varietyRec.DaylengthSensitive}             ${varietyRec.StayGreen}           ${varietyRec.LM_min}           ${varietyRec.Rmax_LTAR}          ${varietyRec.Rmax_LTIR}         ${varietyRec.PhyllFrmTassel}
+      ${cols(varietyRec.JuvenileLeaves, varietyRec.DaylengthSensitive, varietyRec.StayGreen, varietyRec.LM_min, varietyRec.Rmax_LTAR, varietyRec.Rmax_LTIR, varietyRec.PhyllFrmTassel)}
       [SoilRoot]
       *** WATER UPTAKE PARAMETER INFORMATION **************************
        RRRM       RRRY    RVRL
-       ${varietyRec.RRRM}         ${varietyRec.RRRY}          ${varietyRec.RVRL}
+      ${cols(varietyRec.RRRM, varietyRec.RRRY, varietyRec.RVRL)}
        ALPM    ALPY     RTWL    RtMinWtPerUnitArea
-       ${varietyRec.ALPM}          ${varietyRec.ALPY}          ${noe(varietyRec.RTWL)}     ${noe(varietyRec.RTMinWTperArea)}
+      ${cols(varietyRec.ALPM, varietyRec.ALPY, noe(varietyRec.RTWL), noe(varietyRec.RTMinWTperArea))}
       [RootDiff]
        *** ROOT MOVER PARAMETER INFORMATION ***
       EPSI        lUpW             CourMax
-       ${varietyRec.EPSI}             ${varietyRec.lUpW}             ${varietyRec.CourMax}
+      ${cols(varietyRec.EPSI, varietyRec.lUpW, varietyRec.CourMax)}
       Diffusivity and geotropic velocity
-       ${varietyRec.Diffx}           ${varietyRec.Diffz}           ${varietyRec.VelZ}
+      ${cols(varietyRec.Diffx, varietyRec.Diffz, varietyRec.VelZ)}
       [SoilNitrogen]
       *** NITROGEN ROOT UPTAKE PARAMETER INFORMATION **************************
-      ISINK    Rroot         
-       ${varietyRec.Isink}             ${varietyRec.Rroot}
+      ISINK    Rroot
+      ${cols(varietyRec.Isink, varietyRec.Rroot)}
       ConstI   Constk     Cmin0 
-       ${varietyRec.ConstI_M}            ${varietyRec.ConstK_M}           ${varietyRec.Cmin0_M}
-       ${varietyRec.ConstI_Y}          ${varietyRec.ConstK_Y}          ${varietyRec.Cmin0_Y}
+      ${cols(varietyRec.ConstI_M, varietyRec.ConstK_M, varietyRec.Cmin0_M)}
+      ${cols(varietyRec.ConstI_Y, varietyRec.ConstK_Y, varietyRec.Cmin0_Y)}
       [Gas_Exchange Species Parameters] 
       **** for photosynthesis calculations ***
       EaVp    EaVc    Eaj     Hj      Sj     Vpm25   Vcm25    Jm25    Rd25    Ear       g0    g1
@@ -454,37 +488,38 @@ const Worksheet = () => {
     }
 
     let averageHeader = '';
-    let averageData = '';
+    let averageData = [];
     if (climateRec.DailyWind === 0) {
       averageHeader += 'wind    ';
-      averageData   += climateRec.AvgWind;
+      averageData.push('', climateRec.AvgWind);
     }
 
-    if (climateRec.RainIntensity == 0 && weatherRec.Time == 'daily') {
+    if (climateRec.RainIntensity === 0 && weatherRec.Time === 'daily') {
       averageHeader += 'irav    ';
-      averageData   += `        ${climateRec.AvgRainRate}`;
+      averageData.push('', climateRec.AvgRainRate);
     }
-    if (climateRec.DailyConc == 0) {
-      averageHeader += 'ChemConc    ';
-      averageData   += `        ${climateRec.ChemCOnc}`;
+    if (climateRec.DailyConc === 0) {
+      averageHeader += 'ChemConc   ';
+      averageData.push('', climateRec.ChemConc);
     }
-    if (climateRec.DailyCO2 == 0) {
+    if (climateRec.DailyCO2 === 0) {
       averageHeader += '  CO2  ';
-      averageData   += `        ${climateRec.AvgCO2}`;
+      averageData.push('', climateRec.AvgCO2);
     }
 
     return output(`writeClim: ${path}`, `
       ***STANDARD METEOROLOGICAL DATA  Header fle for ${descRec.ClimateID}
       Latitude Longitude
-       ${climateRec.Latitude}        ${climateRec.Longitude}
+      ${cols(climateRec.Latitude, climateRec.Longitude)}
       ^Daily Bulb T(1) ^ Daily Wind(2) ^RainIntensity(3) ^Daily Conc^(4) ,Furrow(5) ^Rel_humid(6) ^CO2(7)
-       ${climateRec.DailyBulb}             ${climateRec.DailyWind}             ${climateRec.RainIntensity}             ${climateRec.DailyConc}             ${climateRec.Furrow}             ${climateRec.RelHumid}             ${climateRec.DailyCO2}
+      ${cols(climateRec.DailyBulb, climateRec.DailyWind, climateRec.RainIntensity, climateRec.DailyConc, climateRec.Furrow, climateRec.RelHumid, climateRec.DailyCO2)}
       Parameters for changing of units: BSOLAR BTEMP ATEMP ERAIN BWIND BIR
        BSOLAR is 1e6/3600 to go from j m-2 h-1 to wm-2
-       ${+climateRec.Bsolar}       ${climateRec.Btemp}             ${climateRec.Atemp}             ${climateRec.Erain}           ${climateRec.BWind}             ${climateRec.BIR}
+      ${cols(climateRec.Bsolar, climateRec.Btemp, climateRec.Atemp, climateRec.Erain, climateRec.BWind, climateRec.BIR)}
       Average values for the site
       ${averageHeader}
-      ${averageData}
+
+      ${cols(...averageData)}
     `);
   } // WriteClim
 
@@ -494,16 +529,15 @@ const Worksheet = () => {
     const soilRecs = dbRecord('Soil', soilFile);
     const maxX = dbRecord('Init', site).RowSpacing / 2 / 100 * 2;
     
-    let s = `
-       *** SoilNit parameters for: ${site}***
+    let s = ' ' + unindent(0, `
+      *** SoilNit parameters for: ${site}***
       ROW SPACING (m)
-      ${maxX}
+       ${maxX}
                                    Potential rate constants:       Ratios and fractions:
-        m      kh     kL       km       kn        kd             fe   fh    r0   rL    rm   fa    nq   cs
-    `;
+        m      kh     kL       km       kn        kd             fe   fh    r0   rL    rm   fa    nq   cs\n`);
 
     soilRecs.forEach((rec, i) => {
-      s += `${i + 1}             ${noe(rec.kh)}       ${noe(rec.kl)}         ${noe(rec.km)}          ${noe(rec.kn)}           ${noe(rec.kd)}     ${rec.fe}           ${rec.fh}           ${rec.r0}            ${rec.rl}            ${rec.rm}            ${rec.fa}           ${rec.nq}             ${noe(rec.cs)}\n`;
+      s += ' ' + cols(i + 1, noe(rec.kh), noe(rec.kl), noe(rec.km), noe(rec.kn), noe(rec.kd), rec.fe, rec.fh, rec.r0, rec.rl, rec.rm, rec.fa, rec.nq, noe(rec.cs)) + '\n';
     });
 
     return output(`writeNit: ${path}`, s);
@@ -537,25 +571,18 @@ const Worksheet = () => {
   WriteBio();
   WriteIni();
   WriteSol();
-  WriteMan(); // START HERE
+  WriteMan();
   WriteLayer();
   WriteTime();
   WriteVar();
   WriteClim();
   WriteNit();
-  WriteDrip();
+  WriteDrip(); // START HERE
 } // Worksheet
-
-// replaces the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
 
 Worksheet();
 
 console.time('total time');
-
-const unindent = s => {
-  const spaces = ' '.repeat(s.replace(/^[\n\r]+/, '').match(/^ +/)[0].length);
-  return s.replace(RegExp(`^${spaces}`, 'mg'), '').trim() + '\n';
-} // unindent
 
 // ____________________________________________________________________________________________________________________________________
 // writes the file with input data for rosetta
