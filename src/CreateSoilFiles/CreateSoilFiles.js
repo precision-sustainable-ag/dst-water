@@ -568,16 +568,113 @@ const Worksheet = () => {
     }
   } // WriteDrip
 
+  const WriteGas = () => {
+    const descRec = dbRecord('Description', site);
+    const CO2ID = descRec.Gas_CO2;
+    const O2ID = descRec.Gas_O2;
+    const path = `${descRec.path}\\${descRec.Gas_File}.gas`;
+
+    const CO2Rec = dbRecord('Gas', CO2ID);
+    const O2Rec = dbRecord('Gas', O2ID);
+    return output(`writeGas: ${path}`, `
+      *** Gas Movement Parameters Information ***
+       Number of gases
+       2
+       Computational parameters
+       EPSI
+       ${CO2Rec.EPSI}
+       Reduced tortousity rate change with water content (bTort)
+       for entire soil domain 
+       ${CO2Rec.bTort}
+      Gas diffusion coefficients in air at standard conditions, cm2/day
+      Gas # 1 (CO2) Gas # 2 (Oxygen) Gas # 3 (Methane)
+      ${cols(CO2Rec['Diffusion_Coeff(cm2/day)'], O2Rec['Diffusion_Coeff(cm2/day)'])}
+    `);
+  } // WriteGas
+
+  const WriteMulch = () => {
+    const descRec = dbRecord('Description', site);
+    const idStrMulchDecomp = descRec.MulchDecomp;
+    const idStrMulchGeo = descRec.MulchGeo;
+    const path = `${descRec.path}\\${idStrMulchGeo}.mul`;
+
+    const mulchRec = dbRecord('MulchGeo', idStrMulchGeo);
+    const mulchDecompRec = dbRecord('MulchDecomp', idStrMulchDecomp);
+    
+    return output(`WriteMulch: ${path}`, `
+      *** Mulch Material information ****  based on g, m^3, J and oC
+      [Basic_Mulch_Configuration]
+      ********The mulch grid configuration********
+      Minimal Grid Size for Horizontal Element
+       ${mulchRec.Min_Hori_Size}
+      ********Simulation Specifications (1=Yes; 0=No)********
+      Only_Diffusive_Flux     Neglect_LongWave_Radiation      Include_Mulch_Decomputions
+      ${cols(mulchRec.Diffusion_Restriction, mulchRec.LongWaveRadiationCtrl, mulchRec.Decomposition_ctrl)}
+      [Mulch_Radiation]
+      ********Mulch Radiation Properties********
+      DeltaRshort DeltaRlong  Omega   epsilon_mulch   alpha_mulch
+      ${cols(mulchRec.DeltaRshort, mulchRec.DeltaRlong, mulchRec.Omega, mulchRec.epsilon_mulch, mulchRec.alpha_mulch)}
+      [Numerical_Controls]
+      ********Picard Iteration COntrol********
+      Max Iteration Step (before time step shrinkage) Tolerence for Convergence (%)
+      ${cols(mulchRec['MaxStep in Picard Iteration'], mulchRec['Tolerance_head'])}
+      [Mulch_Mass_Properties]
+      ********Some Basic Information such as density, porosity and empirical parameters********
+      VRho_Mulch g/m3  Pore_Space  Max Held Ponding Depth
+      ${cols(mulchRec.rho_mulch, mulchRec.pore_space, mulchRec.MaxPondingDepth)}
+      [Mulch_Decomposition]
+      ********Overall Factors********
+      Contacting_Fraction Feeding_Coef
+      ${cols(mulchDecompRec.ContactFraction, mulchDecompRec.alpha_feeding)}
+      The Fraction of Three Carbon Formats (Initial Value)
+       Carbonhydrate(CARB)    Holo-Cellulose (CEL)   Lignin (LIG)
+      ${cols(mulchDecompRec['CARB MASS'], mulchDecompRec['CELL MASS'], mulchDecompRec['LIGN MASS'])}
+      The Fraction of N in Three Carbon Formats (Initial Value)
+       Carbonhydrate(CARB)    Holo-Cellulose (CEL)   Lignin (LIG)
+      ${cols(mulchDecompRec['CARB N MASS'], mulchDecompRec['CELL N MASS'], mulchDecompRec['LIGN N MASS'])}
+      The Intrinsic Decomposition Speed of Three Carbon Formats (day^-1)
+       Carbonhydrate(CARB)    Holo-Cellulose (CEL)   Lignin (LIG)
+      ${cols(mulchDecompRec['CARB Decomp'], mulchDecompRec['CELL Decomp'], mulchDecompRec['LIGN Decomp'])}
+    `);
+  } // WriteMulch
+
+  const WriteWater_bnd = () => {
+    // all of this is hard-coded:
+    const descRec = dbRecord('Description', site);
+    let path = `${descRec.path}\\water.dat`;
+
+    output(`WriteWater_bnd: ${path}`, `
+      *** WATER MOVER PARAMETERINFORMATION ***************************
+      MaxIt   TolTh TolH    hCritA       hCritS      DtMx  htab1   htabN EPSI.Heat  EPSI.Solute
+         20     0.01  0.05  -1.00000E+005 1.0E+010       0.02 0.001   1000     0.5        0.5
+    `);
+
+    path = `${descRec.path}\\WaterBound.dat`;
+    output(path, `
+      *** WATER MOVER TIME-DEPENDENT BOUNDARY
+       Time  Node  VarB
+       252.542
+        6 0.000000E+000
+         7 0.000000E+000
+         12 0.000000E+000
+         13 0.000000E+000
+    `);
+  } // WriteWater_bnd
+
   WriteBio();
   WriteIni();
   WriteSol();
+  WriteGas();
   WriteMan();
+  WriteMulch();
   WriteLayer();
   WriteTime();
   WriteVar();
   WriteClim();
   WriteNit();
-  WriteDrip(); // START HERE
+  // WriteRun();  // hopefully not needed
+  WriteDrip();
+  WriteWater_bnd();
 } // Worksheet
 
 Worksheet();

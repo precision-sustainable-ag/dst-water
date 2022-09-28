@@ -1,8 +1,10 @@
+@echo off
+
 node .\CreateSoilFiles.js .\run_01.lyr /GN run_01 /SN MeadIr_run_01
-rem exit /b
 
 pause
-for %%i in (BiologyDefault.bio run_01.*, Nit*, Pn*, Ag*nit, Ag*dat, data*, grid*, Mead*dat, Mead*soi) do (
-  call c1 %%i test\%%i
-  timeout 2
+
+for %%i in (*bnd, *bio, *dat, *drp, *gas, *grd, *ini, *lyr, *man, *mul, *nit, *nod, *soi, *sol, *tim, *var) do (
+  rem fc /w %%i test\%%i > nul || (code %%i test\%%i & pause)
+  fc /w %%i test\%%i > nul || (call c1 %%i test\%%i & timeout 2)
 )

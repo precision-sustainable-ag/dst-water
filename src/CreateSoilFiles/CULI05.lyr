@@ -1,9 +1,0 @@
-surface ratio    internal ratio: ratio of the distance between two neighboring nodes
- 1.6           0.05          2.1           2
-Row Spacing
- 75
- Planting Depth  X limit for roots
- 10            23            0
- Boundary code for bottom layer (for all bottom nodes) 1 constant -2 seepage face
- 7
- Bottom depth Init Type  OM (%/100)  no3(ppm)    NH4         hNew   Tmpr    Sand     Silt    Clay     BD     TH33     TH1500  thr ths tha th  Alfa    n   Ks  Kk  thk
