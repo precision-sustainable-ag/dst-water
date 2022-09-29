@@ -1,3 +1,4 @@
+// replaces the VBA code of https://github.com/USDA-ARS-ACSL/ExcelInterface/blob/master/ExcelInterface/read%20plant%20filesV7_mulch.xlsm
 // replaces the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
 
 const axios = require('axios');
@@ -5,11 +6,8 @@ const fs = require('fs');
 const XLSX = require('xlsx');
 const {readFile, arg, exit, error, dataTable} = require('./utilities');
 
-const wb = XLSX.readFile('AGMIPET2Sim.xlsx');
-const site = 'run_01';
-
-// const wb = XLSX.readFile('kansas inputs.xlsx');
-// const site = 'CULI05';
+const wb = XLSX.readFile(process.argv[2]);
+const site = process.argv[3];
 
 const unindent = (spaces, s) => {
   const rep = ' '.repeat(s.replace(/^[\n\r]+/, '').match(/^ +/)[0].length);
@@ -40,16 +38,12 @@ const ExcelDateToJSDate = (serial) => { // https://stackoverflow.com/a/65472305/
   return new Date(date_info.getFullYear(), date_info.getMonth(), date_info.getDate(), hours, minutes, seconds);
 } // ExcelDateToJSDate
 
-const dateFormat = (date) => {
-  var year = date.getFullYear();
-
-  var month = (1 + date.getMonth()).toString();
-  month = month.length > 1 ? month : '0' + month;
-
-  var day = date.getDate().toString();
-  day = day.length > 1 ? day : '0' + day;
+const dateFormat = (date, padding=2) => {
+  const year = date.getFullYear();
+  const month = (1 + date.getMonth()).toString().padStart(padding, '0');
+  const day = date.getDate().toString().padStart(padding, '0');
   
-  return month + '/' + day + '/' + year;
+  return `${month}/${day}/${year}`;
 } // dateFormat
 
 const xl = {
@@ -95,9 +89,7 @@ const cols = (...data) => {
   }).join('');
 } // cols
 
-const Worksheet = () => {
-  let soilFile;
-  let hybridFile;
+const worksheet = () => {
   let climateID;
 
   const max = (table, id, col) => {
@@ -147,32 +139,24 @@ const Worksheet = () => {
     }
   } // dbRecord
 
-  const output = (heading, s) => {
+  const output = (fn, s) => {
     const spaces = ' '.repeat(s.match(/ +/)[0].length);
     const re = new RegExp('^' + spaces, 'mg');
 
-    const fn = heading.split('\\')[1];
-
-    fs.writeFileSync(fn, s.replace(re, '').trim());
-    
-    return (`
-      ${heading}
-      ${s.replace(re, '').trim()}
-      _____________________________________________________________________
-    `);
+    fs.writeFileSync(`output/${fn}`, s.replace(re, '').trim());
   } // output
 
   const WriteBio = () => {
     const rec = dbRecord('Description', site);
     const biology = rec.Biology;
-    const path = `${rec.Path}\\${biology}.bio`;
+    const path = `${biology}.bio`;
 
     return (
       xl.Biology
         .filter(d => d.id === biology)
         .map(d =>
-          output(`writeBio: ${path}`, `
-            *** Example 12.3: Parameters of abiotic response: file 'SetAbio.dat'
+          output(path, `
+            *** Example 12.3: Parameters of abiotic responce: file 'SetAbio.dat'
             Dehumification, mineralization, nitrification dependencies on moisture:
              dThH    dThL    es    Th_m
             ${cols(d.dthh, d.dthl, d.es, d.th_m)}
@@ -192,7 +176,7 @@ const Worksheet = () => {
     const initRec = dbRecord('Init', site);
     const depth = max('Soil', descRec.SoilFile, 'bottom depth');
 
-    const path = `${dbRecord('Description', site).Path}\\${site}.ini`;
+    const path = `${site}.ini`;
  
     const rowSP = initRec.RowSpacing;
     const density = initRec.Population / 10000;
@@ -200,7 +184,7 @@ const Worksheet = () => {
     const date1 = dateFormat(ExcelDateToJSDate(initRec.sowing));
     const date2 = dateFormat(ExcelDateToJSDate(initRec.end));
 
-    return output(`writeIni: ${path}`, `
+    return output(path, `
       ***INitialization data for ${site} location
       POPROW  ROWSP  Plant Density      ROWANG  xSeed  ySeed         CEC    EOMult
       ${cols(popRow, +rowSP, density, +initRec.RowAngle, initRec.Xseed, depth - initRec.ySeed, +initRec.CEC, +initRec.EOMult)}
@@ -221,7 +205,7 @@ const Worksheet = () => {
     const solFile = descRec.Solute;
     soilFile = descRec.SoilFile;
 
-    const path = `${descRec.Path}\\${solFile}.sol`;
+    const path = `${solFile}.sol`;
 
     const soilRecs = dbRecord('Soil', soilFile);
 
@@ -267,14 +251,14 @@ const Worksheet = () => {
       s += '1             ' + cols(i + 1, 12.8, 12.8 / 2) + '\n';  // TODO: hardcoded for clay
     });
 
-    return output(`writeSol: ${path}`, s);
+    return output(path, s);
   } // WriteSol
 
   const WriteMan = () => {
     const descRec = dbRecord('Description', site);
     soilFile = descRec.SoilFile;
 
-    const path = `${descRec.Path}\\${site}.man`;
+    const path = `${site}.man`;
 
     const maxX = dbRecord('Init', site).RowSpacing / 2;
     
@@ -303,7 +287,7 @@ const Worksheet = () => {
         const L_N = rec.l_n * factor / 10000 * 1000000;
         const M_C = rec.m_c * factor / 10000 * 1000000;  // manure
         const M_N = rec.m_n * factor / 10000 * 1000000;
-        const date1 = dateFormat(ExcelDateToJSDate(rec.date), 'mm/dd/yyyy');
+        const date1 = dateFormat(ExcelDateToJSDate(rec.date));
         s += cols(date1, amount, depth, L_C, L_N, M_C, M_N) + '\n';
       });
     } else {
@@ -326,7 +310,7 @@ const Worksheet = () => {
 
     // TODO:  Why iterate above but not here?
     if (fertRecs[0].date_residue || (fertRecs[0]['rate (t/ha or  cm)'] && fertRecs[0]['rate (t/ha or  cm)'] != 0)) {
-      const date2 = dateFormat(fertRecs[0]['date_residue'], 'mm/dd/yyyy');
+      const date2 = dateFormat(fertRecs[0]['date_residue']);
       s += unindent(0, `
         1
         tAppl_R (i)    't' or 'm'      Mass (gr/m2) or thickness (cm)    vertical layers
@@ -356,16 +340,17 @@ const Worksheet = () => {
       }
       s += unindent(0, `
         till_Date   till_Depth
-        ${cols(dateFormat(tillDate), tillageRec.depth)}
+        ${cols(dateFormat(tillDate, 0), tillageRec.depth)}
       `);
     }
 
-    return output(`writeMan: ${path}`, s);
+    return output(path, s);
   } // WriteMan
 
   const WriteLayer = () => {
     const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${site}.lyr`;
+    const path = `${site}.lyr`;
+    layerFile = path;
 
     soilFile = descRec.SoilFile;
 
@@ -392,12 +377,11 @@ const Worksheet = () => {
       s += ' ' + cols(rec['bottom depth'], rec['init type'], noe(rec['om (%/100)'], 5), noe(rec['no3 (ppm)'], 5), rec['nh4'], rec['hnew'], rec['tmpr'], rec['co2(ppm)'], rec['o2(ppm)'], rec['sand'] / 100, rec['silt'] / 100, rec['clay'] / 100, rec['bd'], rec['th33'], rec['th1500'], rec['thr'], rec['ths'], rec['tha'], rec['th'], rec['alfa'], rec['n'], rec['ks'], rec['kk'], rec['thk']) + '\n';
     });
     
-    return output(`writeLayer: ${path}`, s);
+    return output(path, s);
   } // WriteLayer
 
   const WriteTime = () => {
-    const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${site}.tim`;
+    const path = `${site}.tim`;
 
     const timeRec = dbRecord('Time', site);
     const date1 = dateFormat(ExcelDateToJSDate(timeRec.startDate));
@@ -415,17 +399,17 @@ const Worksheet = () => {
       ${cols(timeRec.runtoend)}
     `);
   
-    return output(`writeTime: ${path}`, s);
+    return output(path, s);
   } // WriteTime
 
   const WriteVar = () => { // TODO: 0.0001059 becomes 0.000106.  May not matter
     const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${descRec.VarietyFile}`;
+    const path = descRec.VarietyFile;
 
     hybridFile = descRec.Hybrid;
     const varietyRec = dbRecord('Variety', descRec.Hybrid);
 
-    return output(`writeVar: ${path}`, `
+    return output(path, `
       Corn growth simulation for  ${descRec.Hybrid}   variety 
        Juvenile   Daylength   StayGreen  LA_min  Rmax_LTAR              Rmax_LTIR                Phyllochrons from
        leaves     Sensitive               Leaf tip appearance   Leaf tip initiation       TassellInit
@@ -479,7 +463,7 @@ const Worksheet = () => {
 
   const WriteClim = () => {
     const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${descRec.ClimateFile}`;
+    const path = descRec.ClimateFile;
     climateID = descRec.ClimateID;
     const climateRec = dbRecord('Climate', climateID);
     let weatherRec = dbRecord('Weather', climateID);
@@ -507,7 +491,7 @@ const Worksheet = () => {
       averageData.push('', climateRec.AvgCO2);
     }
 
-    return output(`writeClim: ${path}`, `
+    return output(path, `
       ***STANDARD METEOROLOGICAL DATA  Header fle for ${descRec.ClimateID}
       Latitude Longitude
       ${cols(climateRec.Latitude, climateRec.Longitude)}
@@ -525,7 +509,7 @@ const Worksheet = () => {
 
   const WriteNit = () => {
     const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${descRec.NitrogenFile}`;
+    const path = descRec.NitrogenFile;
     const soilRecs = dbRecord('Soil', soilFile);
     const maxX = dbRecord('Init', site).RowSpacing / 2 / 100 * 2;
     
@@ -540,18 +524,18 @@ const Worksheet = () => {
       s += ' ' + cols(i + 1, noe(rec.kh), noe(rec.kl), noe(rec.km), noe(rec.kn), noe(rec.kd), rec.fe, rec.fh, rec.r0, rec.rl, rec.rm, rec.fa, rec.nq, noe(rec.cs)) + '\n';
     });
 
-    return output(`writeNit: ${path}`, s);
+    return output(path, s);
   } // WriteNit
 
   const WriteDrip = () => {
     const descRec = dbRecord('Description', site);
-    const path = `${descRec.Path}\\${site}.drp`;
+    const path = `${site}.drp`;
     soilFile = descRec.SoilFile;
 
     const dripRec = dbRecords('Drip', site);
 
     if (!dripRec.length) {
-      return output(`writeDrip: ${path}`, `
+      return output(path, `
         *****Script for Drip application module  ******* mAppl is cm water per hour to a 45 x 30 cm area
         Number of Drip irrigations(max=25)
          0
@@ -559,7 +543,7 @@ const Worksheet = () => {
       `);
     } else {
       const nodesRec = dbRecords('Dripnodes', site);
-      output(`<b>writeDrip: ${path}</b>`, `
+      output(path, `
         TODO!!!
         *****Script for Drip application module  ******* mAppl is cm water per hour to a 45 x 30 cm area
         Number of Drip irrigations(max=25)
@@ -572,11 +556,11 @@ const Worksheet = () => {
     const descRec = dbRecord('Description', site);
     const CO2ID = descRec.Gas_CO2;
     const O2ID = descRec.Gas_O2;
-    const path = `${descRec.path}\\${descRec.Gas_File}.gas`;
+    const path = `${descRec.Gas_File}.gas`;
 
     const CO2Rec = dbRecord('Gas', CO2ID);
     const O2Rec = dbRecord('Gas', O2ID);
-    return output(`writeGas: ${path}`, `
+    return output(path, `
       *** Gas Movement Parameters Information ***
        Number of gases
        2
@@ -596,12 +580,12 @@ const Worksheet = () => {
     const descRec = dbRecord('Description', site);
     const idStrMulchDecomp = descRec.MulchDecomp;
     const idStrMulchGeo = descRec.MulchGeo;
-    const path = `${descRec.path}\\${idStrMulchGeo}.mul`;
+    const path = `${idStrMulchGeo}.mul`;
 
     const mulchRec = dbRecord('MulchGeo', idStrMulchGeo);
     const mulchDecompRec = dbRecord('MulchDecomp', idStrMulchDecomp);
     
-    return output(`WriteMulch: ${path}`, `
+    return output(path, `
       *** Mulch Material information ****  based on g, m^3, J and oC
       [Basic_Mulch_Configuration]
       ********The mulch grid configuration********
@@ -640,16 +624,15 @@ const Worksheet = () => {
 
   const WriteWater_bnd = () => {
     // all of this is hard-coded:
-    const descRec = dbRecord('Description', site);
-    let path = `${descRec.path}\\water.dat`;
+    let path = `water.dat`;
 
-    output(`WriteWater_bnd: ${path}`, `
+    output(path, `
       *** WATER MOVER PARAMETERINFORMATION ***************************
       MaxIt   TolTh TolH    hCritA       hCritS      DtMx  htab1   htabN EPSI.Heat  EPSI.Solute
          20     0.01  0.05  -1.00000E+005 1.0E+010       0.02 0.001   1000     0.5        0.5
     `);
 
-    path = `${descRec.path}\\WaterBound.dat`;
+    path = `WaterBound.dat`;
     output(path, `
       *** WATER MOVER TIME-DEPENDENT BOUNDARY
        Time  Node  VarB
@@ -675,11 +658,7 @@ const Worksheet = () => {
   // WriteRun();  // hopefully not needed
   WriteDrip();
   WriteWater_bnd();
-} // Worksheet
-
-Worksheet();
-
-console.time('total time');
+} // worksheet
 
 // ____________________________________________________________________________________________________________________________________
 // writes the file with input data for rosetta
@@ -693,7 +672,7 @@ const CreateSoilFile = (dtLayer, SoilFileName) => {
   });
   s.push('');
 
-  fs.writeFileSync(SoilFileName, s.join('\n'));
+  fs.writeFileSync(`output/${SoilFileName}`, s.join('\n'));
 } // CreateSoilFile
 
 // ____________________________________________________________________________________________________________________________________
@@ -880,7 +859,7 @@ const createSoilFiles = (layerFile) => {
   // 2-If we use a template for the grid file we need to either parse the existing grid file or use an existing data2Gen file. In this 
   // case we have the grid information, we only need to fill in the material numbers
 
-  const GridFileRoot  = arg('/GN') || arg('/GM');
+  const GridFileRoot = site; // arg('/GN') || arg('/GM');
 
   if (GridFileRoot) {
     // we will create a gridgen file and use it to call the mesh generator 
@@ -1045,15 +1024,11 @@ const createSoilFiles = (layerFile) => {
     // Now write out the nodal and element data 
     WriteNodalFile(`${GridFileRoot}.nod`, dtNodal, dtLayers);
 
-    const SoilFile = arg('/SN') ? arg('/SN') + '.dat' : '';
+    const SoilFile = soilFile.replace('.soi', '.dat');  // arg('/SN') ? arg('/SN') + '.dat' : '';
     CreateSoilFile(dtLayers, SoilFile);
     
-//    console.time('rosetta');
-//    execSync(`rosetta ${SoilFile}`);
-//    console.timeEnd('rosetta');
-//
     console.time('rosetta');
-    const soildata = readFile(SoilFile).slice(1);
+    const soildata = readFile(`output/${SoilFile}`).slice(1);
     
     const rosettaData = soildata.map(row => {
       row = [...row];
@@ -1088,7 +1063,7 @@ const createSoilFiles = (layerFile) => {
           s += `    ${theta_r.toFixed(3)}    ${theta_s.toFixed(3)}    ${theta_r.toFixed(3)}    ${theta_s.toFixed(3)}    ${alpha.toFixed(5)}    ${npar.toFixed(5)}    ${ksat.toFixed(3)}    ${ksat.toFixed(3)}    ${theta_s.toFixed(3)}    ${bd.toFixed(2)} ${om.toFixed(5)}    ${sand.toFixed(2)}    ${silt.toFixed(2)}   ${inittype}\r\n`;
         });
 
-        fs.writeFileSync(SoilFile.replace('dat', 'soi'), s);
+        fs.writeFileSync(`output/${SoilFile.replace('dat', 'soi')}`, s);
         console.timeEnd('rosetta');
       })
       .catch(error => {
@@ -1199,7 +1174,7 @@ const CalculateRoot = (dtNode, dtGrid, ProfileDepth, PlantingDepth, xRootExtent,
 const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBCTop, GasBCBottom) => {
   const OutNode = dsGrid[0];
   const OutElem = dsGrid[1];
-  const data = readFile(OldGridFile);
+  const data = readFile(`output/${OldGridFile}`);
   const s = [];
   
   let i = 0;
@@ -1223,14 +1198,14 @@ const WriteGridFile = (dsGrid, NewGridFile, OldGridFile, MatNum, BottomBC, GasBC
   });
 
   s.push(...data.slice(i).map(row => row.org));
-  fs.writeFileSync(NewGridFile, s.join('\n'));
+  fs.writeFileSync(`output/${NewGridFile}`, s.join('\n'));
 } // WriteGridFile
 
 // ____________________________________________________________________________________________________________________________________
 // Reads the Grid file and extracts the grid.
 // Creates a table to hold the grid data and fills it with data from the file.
 const ParseGridFile = (GridFile) => {
-  const data = readFile(GridFile);
+  const data = readFile(`output/${GridFile}`);
   const [_, node, element] = data[2];
 
   const dtNode = dataTable(data.slice(4, node + 4), [
@@ -1270,7 +1245,7 @@ const WriteNodalFile = (NodalFileName, dtNodal) => {
       ).join('\t')
     );
   });
-  fs.writeFileSync(NodalFileName, s.join('\n'));
+  fs.writeFileSync(`output/${NodalFileName}`, s.join('\n'));
 } // WriteNodalFile
 
 // ____________________________________________________________________________________________________________________________________
@@ -1320,7 +1295,7 @@ const WriteToGridGenFile = (GridGenInput, YSegment, xSegment, BottomBC, GasBCTop
   s.push('y(i): 1->(NumNP-n00)/IJ+1');
 
   YSegment.forEach(Seg => s.push(` ${Seg.join('  ')} `));
-  fs.writeFileSync('datagen2.dat', s.join('\n'));  
+  fs.writeFileSync('output/datagen2.dat', s.join('\n'));  
 } // WriteToGridGenFile
 
 // ____________________________________________________________________________________________________________________________________
@@ -1358,7 +1333,7 @@ const grid_bnd = () => {
     s.push(row);
   } // format
 
-  const data = readFile('datagen2.dat');
+  const data = readFile('output/datagen2.dat');
 
   const [IJ, e00, n00, NumNP, NumEl, NMat, BC, GasBCTop, GasBCBot] = data[1];
 
@@ -1446,15 +1421,13 @@ const grid_bnd = () => {
 
   output('***************************Drainage Boundaries******************************************\nNDrain\n0');
 
-  fs.writeFileSync('grid_bnd', s.join('\n'));
+  fs.writeFileSync('output/grid_bnd', s.join('\n'));
 } // grid_bnd
 
 // ____________________________________________________________________________________________________________________________________
 
-if (arg('/GN') && arg('/GM')) {
-  error('Cannot use GM and GN together');
-}
+let layerFile;
+let soilFile;
 
-createSoilFiles(process.argv[2]);
-
-console.timeEnd('total time');
+worksheet();
+createSoilFiles(`output/${layerFile}`);

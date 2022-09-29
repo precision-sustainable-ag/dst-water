@@ -17,4 +17,4 @@ application  1 or 0, 1(yes) 0(no)
 1: Tillage , 0: No till
  1
 till_Date   till_Depth
-'05/10/2003'   15
+'5/10/2003'    15
