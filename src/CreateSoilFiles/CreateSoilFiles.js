@@ -1,5 +1,8 @@
+// .\run.bat .\AGMIPET2Sim.xlsx run_01
 // replaces the VBA code of https://github.com/USDA-ARS-ACSL/ExcelInterface/blob/master/ExcelInterface/read%20plant%20filesV7_mulch.xlsm
 // replaces the C# and Fortran code of https://github.com/USDA-ARS-ACSL/CreateSoilFiles
+
+console.time('Total time');
 
 const axios = require('axios');
 const fs = require('fs');
@@ -214,8 +217,8 @@ const worksheet = () => {
     const textureCl = [];
     
     soilRecs.forEach(rec => {
-      const texture = '/loam /clay  /silt';
-      const slashes = texture.split('/');
+      // const texture = '/loam /clay  /silt';
+      // const slashes = texture.split('/');
       textureCl.push('clay'); // TODO
     });
 
@@ -322,6 +325,7 @@ const worksheet = () => {
     }
 
     const tillageRec = dbRecord('Tillage', descRec.tillage);
+
     s += unindent(0, `
       [Tillage]
       1: Tillage , 0: No till
@@ -1027,7 +1031,7 @@ const createSoilFiles = (layerFile) => {
     const SoilFile = soilFile.replace('.soi', '.dat');  // arg('/SN') ? arg('/SN') + '.dat' : '';
     CreateSoilFile(dtLayers, SoilFile);
     
-    console.time('rosetta');
+    console.time('Rosetta time');
     const soildata = readFile(`output/${SoilFile}`).slice(1);
     
     const rosettaData = soildata.map(row => {
@@ -1064,7 +1068,8 @@ const createSoilFiles = (layerFile) => {
         });
 
         fs.writeFileSync(`output/${SoilFile.replace('dat', 'soi')}`, s);
-        console.timeEnd('rosetta');
+        console.timeEnd('Rosetta time');
+        console.timeEnd('Total time');
       })
       .catch(error => {
         console.error(error);

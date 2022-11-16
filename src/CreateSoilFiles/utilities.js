@@ -3,7 +3,7 @@ const fs = require('fs');
 // ____________________________________________________________________________________________________________________________________
 const readFile = (file, removeQuotes) => {
   let data = fs.readFileSync(file, 'utf8').trim();
-  
+
   if (removeQuotes) {
     data = data.replace(/'/g, '');
   }
