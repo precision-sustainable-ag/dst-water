@@ -1,0 +1,50 @@
+.Worksheet {
+  .selected {
+    background: lightgreen;
+  }
+
+  table {
+    font: 13px arial;
+  }
+
+  th {
+    background: #eee;
+    vertical-align: bottom;
+  }
+
+  .data, pre {
+    width: 100%;
+    max-height: calc(100vh - 8rem);
+    overflow: auto;
+    border: 1px solid #ccc;
+  }
+
+  pre {
+    padding: 10px;
+    margin: 0;
+    font: 13px consolas, monospace;
+    background: lightyellow;
+  }
+
+  section summary {
+    font: 13px arial;
+    font-weight: bold;
+    background: #eee;
+    padding: 0.5rem;
+    cursor: pointer;
+    margin: 0;
+    border-top: 1px solid #aaa;
+  }
+
+  .match summary {
+    background: lightgreen !important;
+  }
+  
+  .mismatch summary {
+    background: orange !important;
+  }
+  
+  .missing summary {
+    background: red !important;
+  }  
+}

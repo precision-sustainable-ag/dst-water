@@ -1,158 +1,667 @@
-import {configureStore, createAction, createReducer} from '@reduxjs/toolkit';
+// // code breaking eslint rules were disabled --- MILAD
+/* eslint-disable no-alert */
+/* eslint-disable camelcase */
+/* eslint-disable max-len */
+/* eslint-disable no-use-before-define */
+
+import React from 'react';
+import { createStore, set } from './redux-autosetters';
 
 const initialState = {
-  focus: null,
+  focus: '',
+  name: '',
+  email: '',
+  feedback: '',
+  screen: '',
+  field: '',
+  lat: 40.7849,
+  lon: -74.8073,
+  mapAddress: '',
+  mapZoom: 13,
+  mapType: 'hybrid',
+  mapPolygon: [],
+  maxZoom: 20,
+  model: {},
+  SSURGO: {},
+  gotSSURGO: false,
+  state: '',
+  unit: 'lb/ac',
+  location: '',
+  privacy: false,
   site: '',
+  sites: [],
   worksheetName: '',
   worksheet: [],
+  data: '',
   xl: {
-    Description:    [],
-    Biology:        [],
-    Climate:        [],
-    Fertilization:  [],
-    GridRatio:      [],
-    Irrig:          [],
-    Drip:           [],
-    DripNodes:      [],
-    Init:           [],
-    Soil:           [],
-    Solute:         [],
-    Time:           [],
-    Variety:        [],
-    Weather:        [],
-    Gas:            [],
-    MulchDecomp:    [],
-    MulchGeo:       [],
-  }
+    Description: [],
+    Biology: [],
+    Climate: [],
+    Fertilization: [],
+    GridRatio: [],
+    Irrig: [],
+    Init: [],
+    Soil: [],
+    Solute: [],
+    Time: [],
+    Variety: [],
+    Weather: [],
+    Gas: [],
+    MulchDecomp: [],
+    MulchGeo: [],
+    Tillage: [],
+  },
+  soilfiles: {},
+
+  // hidden: true,
+  // label: '...',
+  // unit: '...',
+  // description: <>...</>
+  Biology: {
+    es: {
+      value: 0.06,
+      unit: <>fraction</>,
+      description: <>Relative effect of moisture when the soil is saturated</>,
+    },
+    tb: {
+      value: 25,
+      unit: <>C</>,
+      description: <>Base temperature at which eT =1</>,
+    },
+    dthh: {
+      value: 0.1,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+      description: <>The highest volumetric water content for which the process is optimal</>,
+    },
+    dthl: {
+      value: 0.08,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+      description: <>The lowest volumetric water content for which the process is optimal</>,
+    },
+    th_m: {
+      value: 1,
+      description: <>Exponent in dependencies of e(theta) on theta (water content)</>,
+    },
+    qt: {
+      value: 3,
+      description: <>Factor change in rate with a 10&deg; C change in temperature</>,
+    },
+    dthd: {
+      value: 0.1,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+      description: <>Threshold water content below which no denitrification occurs</>,
+    },
+    th_d: {
+      value: 2,
+      description: <>Exponent in dependencies of e(d) on theta (water content)</>,
+    },
+  },
+  Climate: {
+    dailybulb: {
+      value: 'Daily',
+      options: ['Daily', 'Hourly'],
+      description: <>Switch to indicate if daily or hourly wet bulb temperatures are available.</>,
+    },
+    dailywind: {
+      value: 1,
+    },
+    rainintensity: {
+      value: 0,
+    },
+    dailyconc: {
+      value: 0,
+    },
+    furrow: {
+      value: 0,
+    },
+    relhumid: {
+      value: 1,
+    },
+    dailyco2: {
+      value: 0,
+    },
+    bsolar: {
+      value: 1000000,
+    },
+    btemp: {
+      value: 1,
+    },
+    atemp: {
+      value: 0,
+    },
+    erain: {
+      value: 0.1,
+    },
+    bwind: {
+      value: 1,
+    },
+    bir: {
+      value: 1,
+    },
+    avgwind: {
+      value: 10,
+    },
+    avgrainrate: {
+      value: 3,
+    },
+    chemconc: {
+      value: 0,
+    },
+    rh: {
+      value: 83,
+    },
+    avgco2: {
+      value: 420,
+    },
+    altitude: {
+      value: 1048,
+    },
+  },
+  Fertilization: {
+    amount: {
+      value: 112,
+    },
+    depth: {
+      value: 5,
+    },
+    'litter_c(kg/ha)': {
+      label: 'litter_c',
+      value: 0,
+      unit: 'kg/ha',
+    },
+    litter_n: {
+      value: 0,
+    },
+    manure_c: {
+      value: 0,
+    },
+    manure_n: {
+      value: 0,
+    },
+  },
+  GridRatio: {
+    sr1: {
+      label: <>Surface nodes spacing ratio</>,
+      value: 1.001,
+      description:
+  <>
+    Determines how spacing changes with increasing depth. The closer to 1
+    this number (but must be always &gt;1) the more uniform the node spacing
+  </>,
+    },
+    ir1: {
+      label: <>Interior nodes spacing ratio</>,
+      value: 1,
+    },
+    sr2: {
+      label: <>Surface nodes  mininimum distance</>,
+      value: 1.001,
+      description: <>initial distance between vertical nodes from the surface to the first layer</>,
+    },
+    ir2: {
+      label: <>Interior nodes minimum distance</>,
+      value: 3,
+      description: <>initial distance between vertical nodes at a boundary</>,
+    },
+    plantingdepth: {
+      label: <>depth of seed</>,
+      value: 5,
+      unit: 'cm',
+    },
+    xlimitroot: {
+      label: <>maximum initial rooting depth at emergence (for potato)</>,
+      value: 23,
+      unit: 'cm',
+    },
+    bottombc: {
+      label: <>Bottom Boundary condition</>,
+      value: '1 constant',
+      options: ['1 constant', '-2 seepage face', '-7 unit hydraulic gradient drainage'],
+    },
+    gasbctop: {
+      value: -4,
+    },
+    gasbcbottom: {
+      value: 1,
+    },
+    initrtmass: {
+      value: 0,
+    },
+  },
+  Irrigation: { // Irrig
+    date: {
+      value: undefined,
+    },
+    amount: {
+      value: undefined,
+    },
+  },
+  Soil: {
+    bottom_depth: {
+      label: <>Bottom Depth</>,
+      value: 10,
+      unit: <div />,
+    },
+    om_pct: {
+      label: <>Organic Matter</>,
+      value: 0.004,
+      unit: <>fraction</>,
+    },
+    no3: {
+      label: <>Nitrate</>,
+      value: 5,
+      unit: <>ug/cm3 (ppm)</>,
+    },
+    nh4: {
+      label: <>Ammonia</>,
+      value: 1,
+      unit: <>ug/cm3 (ppm)</>,
+    },
+    hnnew: {
+      label: <>Soil Metric Potential</>,
+      value: -100,
+      unit: <div />,
+    },
+    tmpr: {
+      label: <>Soil temperature</>,
+      value: 23,
+      unit: <>C</>,
+    },
+    sand: {
+      label: <>Sand Fraction</>,
+      value: 55,
+      unit: <>%</>,
+    },
+    silt: {
+      label: <>Silt Fraction</>,
+      value: 35,
+      unit: <>%</>,
+    },
+    clay: {
+      label: <>Clay Fraction</>,
+      value: 10,
+      unit: <>%</>,
+    },
+    bd: {
+      label: <>Bulk Density of Soil in Horizon</>,
+      value: 1.3,
+      unit:
+  <>
+    g/c
+    <sup>3</sup>
+  </>,
+    },
+    th33: {
+      label: <>Soil Water Content at Capillary Pressure of 330 cm</>,
+      value: 0.34,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    th1500: {
+      label: <>Soil Water Content at Capillary Pressure of 1500 cm</>,
+      value: 0.05,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    thr: {
+      label: <>Residual Soil Water Content</>,
+      value: 0.02,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    ths: {
+      label: <>Saturated Soil Water Content</>,
+      value: 0.39,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    tha: {
+      label: <>Residual Soil Water content</>,
+      value: 0.02,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    th: {
+      label: <>Saturated Volumetric Soil Water Content</>,
+      value: 0.39,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    alfa: {
+      label: <>slope in van Genuchten&apos;s equation</>,
+      value: 0.003,
+      unit: <div />,
+    },
+    n: {
+      label: <>Measure of the Pore-Size Distribution</>,
+      value: 1.2,
+      unit: <div />,
+    },
+    ks: {
+      label: <>Saturated Hydraulic Conductivity</>,
+      value: 12,
+      unit: <>cm/day</>,
+    },
+    kk: {
+      label:
+  <>
+    Saturated Hydraulic Conductivity for alternanative version of van Genuchten&apos;s
+    equation that allows for representing saturated hydrualic conductivity when the soil is near saturation
+  </>,
+      value: 12,
+      unit: <>cm/day</>,
+    },
+    thk: {
+      label: <>Near saturated volumetric water content where Kk is used</>,
+      value: 0.39,
+      unit:
+  <>
+    cm
+    <sup>3</sup>
+    /cm
+    <sup>3</sup>
+  </>,
+    },
+    kh: {
+      label:
+  <>
+    Potential mineralization rate fro the stable humus pool, day
+    <sup>-1</sup>
+  </>,
+      value: 0.00007,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    kL: {
+      label:
+  <>
+    Potential plant residue decomposition rate, day
+    <sup>-1</sup>
+  </>,
+      value: 0.035,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    km: {
+      label:
+  <>
+    Potential rate of the organic fertilizer decomposition, day
+    <sup>-1</sup>
+  </>,
+      value: 0.07,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    kn: {
+      label:
+  <>
+    Potential rate of nitrification, day
+    <sup>-1</sup>
+  </>,
+      value: 0.02,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    kd: {
+      label:
+  <>
+    Potential rate of denitrification, mg L
+    <sup>-1</sup>
+    {' '}
+    day
+    <sup>-1</sup>
+  </>,
+      value: 0.00001,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    fe: {
+      label: <>Microbial synthesis efficiency</>,
+      value: 0.6,
+      unit: <div />,
+    },
+    fh: {
+      label: <>Humification fraction</>,
+      value: 0.2,
+      unit: <div />,
+    },
+    r0: {
+      label: <>C/N ratio of the decomposer biomass and humification products</>,
+      value: 10,
+      unit: <div />,
+    },
+    rl: {
+      label: <>C/N ratio of plant residues</>,
+      value: 50,
+      unit: <div />,
+    },
+    rm: {
+      label: <>C/N ratio of the organic fertilizer</>,
+      value: 10,
+      unit: <div />,
+    },
+    fa: {
+      label: <>Fraction of the mineral nitrogen available for immobilization</>,
+      value: 0.1,
+      unit: <div />,
+    },
+    nq: {
+      label: <>Ratio of the mineral nitrate amount to the mineral ammonium amount characteristic to the particular soil material</>,
+      value: 8,
+      unit: <div />,
+    },
+    cs: {
+      label:
+  <>
+    Michaelis-Menten constant of denitrification, mg L
+    <sup>-1</sup>
+  </>,
+      value: 0.00001,
+      unit:
+  <>
+    mg L
+    <sup>-1</sup>
+  </>,
+    },
+
+  },
 };
 
-const sets = {};
-const gets = {};
+const fetchSSURGOWater = (state) => {
+  const { lat, lon } = state;
 
-const funcs = {};
-const methods = {};
+  state.gotSSURGO = false;
 
-const processMethods = ((state, key) => {
-  if (methods[key]) {
-    for (let k in methods[key]) {
-      let st = state;
-      for (const key of k.split('.').slice(0, -1)) st = st[key];
-      const l = k.includes('.') ? k.split('.').slice(-1)[0] : k;
-      st[l] = methods[key][k](state);
-      processMethods(state, k);
-    }
-  }
-});
+  const url = `https://ssurgo.covercrop-data.org/?lat=${lat}&lon=${lon}&component=major`;
 
-const afterChange = {
+  api({
+    url,
+    callback: (data) => {
+      if (data.ERROR) {
+        // console.log(`No SSURGO data at ${lat}, ${lon}`);
+        store.dispatch(set.BD(''));
+        store.dispatch(set.OM(''));
+      } else {
+        // store.dispatch(set.BD(weightedAverage(data, 'dbthirdbar_r')));
+        // store.dispatch(set.OM(weightedAverage(data, 'om_r')));
+        store.dispatch(set.gotSSURGO(true));
+        store.dispatch(set.SSURGO(data));
+      }
+    },
+    timer: 'ssurgo',
+    delay: 2000,
+  });
+}; // fetchSSURGOWater
+
+const ac = {
+  lat: (state) => fetchSSURGOWater(state),
+  lon: (state) => fetchSSURGOWater(state),
 };
 
-const builders = (builder) => {
-  const recurse = (obj, set, get, parents = []) => {
-    Object.keys(obj).forEach((key) => {
-      const isArray = Array.isArray(obj[key]);
-      const isObject = !isArray && obj[key] instanceof Object;
-      const fullkey = parents.length ? parents.join('.') + '.' + key : key;
+export const rosetta = (soildata) => {
+  const rosettaData = soildata.map((row) => {
+    row = [...row];
+    row.splice(0, 1); // remove Matnum
+    row.splice(4, 1); // remove om
+    row.splice(6, 1); // remove 'w'
+    row[0] *= 100; // sand
+    row[1] *= 100; // silt
+    row[2] *= 100; // clay
+    delete row.org;
+    return row;
+  });
 
-      if (key !== 'name') { // TODO
-        get[key] = (state) => {
-          let st = state;
-          for (const k of parents) st = st[k];
+  api({
+    // url: 'https://www.handbook60.org/api/v1/rosetta/1', // doesn't support CORS
+    url: 'http://localhost:80/rosetta',
+    options: {
+      method: 'post',
+      soildata: rosettaData,
+    },
+    callback: (data) => {
+      let s = '           *** Material information ****                                                                   g/g  \r\n';
+      s += '   thr       ths         tha       thm     Alfa      n        Ks         Kk       thk       BulkD     OM    Sand    Silt    InitType\r\n';
 
-          if (!st) {
-            alert('Unknown: ' + fullkey);
-          }
-          return st[key];
+      data.van_genuchten_params.forEach((d, i) => {
+        let [alpha, npar, ksat, theta_s] = d;
+        const [theta_r] = d;
+
+        alpha = 10 ** alpha;
+        npar = 10 ** npar;
+        ksat = 10 ** ksat;
+
+        // eslint-disable-next-line no-unused-vars
+        const [Matnum, sand, silt, clay, bd, om, TH33, TH1500, inittype] = soildata[i];
+
+        const theta_m = theta_s;
+        let theta_k = theta_s;
+        let kk = ksat;
+
+        if (npar > 1 && npar < 2) {
+          theta_k -= 0.004;
+          kk = ksat - (0.10 * ksat);
+          theta_s -= 0.002;
         }
 
-        if (typeof obj[key] === 'function') {
-          funcs[fullkey] = obj[key];
-          let m = obj[key].toString().match(/\b(state|e)\b\.[$_\w.(]+/g);  // state.* unbuilt, e.* built
-          if (m) {
-            console.log(m);
-            m = m.map(s => s.split(/\./).slice(1).join('.')?.split(/\.\w+\(/)[0].replace('.length', ''));  // remove .forEach(, etc.
-            console.log(m);
-            // m = m.map(s => s.split(/\./)[1]);  // remove .forEach(, etc.
-            m.forEach(m => {
-              methods[m] = methods[m] || {};
-              methods[m][fullkey] = funcs[fullkey];
-            });
-          }
-  
-          obj[key] = obj[key](initialState);
-          // return;
-        }
-      }
+        // if (rosoutput.vgnpar < 2.0 && rosoutput.vgnpar > 1 && count === 1) {
+        //   vgthm = rosoutput.vgths;
+        //   vgths = rosoutput.vgths - 0.002;
+        //   vgthk = rosoutput.vgths - 0.004;
+        //   vgkk = rosoutput.ks  - (0.10 * rosoutput.ks);
+        // }
 
-      if (key !== 'name') { // TODO
-        set[key] = createAction(fullkey);
+        // Heading    JS var    C++ var
+        // ________   _______   ____________________
+        // thr        theta_r   rosoutput.vgthr
+        // ths        theta_s   vgths
+        // tha        theta_r   rosoutput.vgthr
+        // thm        theta_m   vgthm
+        // Alfa       alpha     rosoutput.vgalp
+        // n          npar      rosoutput.vgnpar
+        // Ks         ksat      rosoutput.ks
+        // Kk         kk        vgkk
+        // thk        theta_k   vgthk
+        // BulkD      bd        rosinput.bd
+        // OM         om        OM
+        // Sand       sand      rosinput.sand/100.0
+        // Silt       silt      rosinput.silt/100.0
+        // InitType   inittype  InitType
 
-        builder
-          .addCase(set[key], (state, action) => {
-            let st = state;
-            for (const k of parents) st = st[k];
+        s += `    ${theta_r.toFixed(3)}    ${theta_s.toFixed(3)}    ${theta_r.toFixed(3)}    ${theta_m.toFixed(3)}    ${alpha.toFixed(5)}    ${npar.toFixed(5)}    ${ksat.toFixed(3)}    ${kk.toFixed(3)}    ${theta_k.toFixed(3)}    ${bd.toFixed(2)} ${om.toFixed(5)}    ${sand.toFixed(2)}    ${silt.toFixed(2)}   ${inittype}\r\n`;
+      });
 
-            if (isArray && Number.isFinite(action.payload.index)) {
-              const {index, value} = action.payload;
-              if (st[key][index] !== value) { // TODO: is this check needed?
-                st[key][index] = value;
-              }
-            } else {
-              if (st[key] !== action.payload) { // TODO: is this check needed?
-                st[key] = action.payload;
-              }
-            }
-            
-            if (afterChange[fullkey]) {
-              const ac = afterChange[fullkey](state, action);
-              if (ac) {
-                ac.forEach(parm => afterChange[parm](state, action));
-              }
-            }
+      const state = store.getState();
+      store.dispatch(set.soilfiles({ ...state.soilfiles, 'meadir_run_01.soi': s }));
+      // console.log('ok');
+    },
+  });
+}; // rosetta
 
-            // TODO:  Is the first of these needed?
-              processMethods(state, key);
-              processMethods(state, fullkey);
+const reducers = {};
 
-            if (afterChange[fullkey]) {
-              let m = afterChange[fullkey].toString().match(/state.[$_\w.(]+/g);
-          
-              if (m) {
-                m = m.forEach(s => {
-                  s = s.split('state.')[1];
-                  if (s) {
-                    processMethods(state, s.split(/\.\w+\(/)[0]);
-                  }
-                });
-              }
-            }
-          }
-        );
-      }
+export const store = createStore(initialState, { afterChange: ac, reducers });
 
-      if (isObject) {
-        recurse(obj[key], set[key], get[key], [...parents, key]);
-      }
+export const api = ({
+  url, options = {}, callback, timer = url, delay = 0,
+}) => {
+  if (timer) {
+    clearTimeout(api[timer]);
+  }
+
+  api[timer] = setTimeout(() => {
+    // console.log(url);
+    store.dispatch({
+      type: 'api',
+      payload: {
+        url,
+        options,
+        callback,
+      },
     });
-  } // recurse
+  }, delay);
+}; // api
 
-  recurse(initialState, sets, gets);
-} // builders
-
-export const runBuilders = () => createReducer(initialState, builders);
-
-const mystore = configureStore({
-  reducer: createReducer(initialState, builders)
-});
-
-export const store = mystore;
-
-export const set = sets;
-export const get = gets;
-
-console.log({
-  set,
-  get,
-  funcs,
-  methods
-});
+export { set, get } from './redux-autosetters';

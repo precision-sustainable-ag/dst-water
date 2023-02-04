@@ -1,0 +1,21 @@
+.Soil {
+  th {
+    vertical-align: bottom;
+    background: darkgreen;
+    color: white;
+  }
+
+  td {
+    text-align: right;
+  }
+
+  td:nth-child(1) {
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  .wait {
+    color: red;
+  }
+}
+

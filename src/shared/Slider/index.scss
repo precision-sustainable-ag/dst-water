@@ -1,0 +1,22 @@
+.slider {
+  .MuiSlider-root {
+    max-width: 20em;
+    vertical-align: bottom;
+    color: #4F6B14;
+    position: relative;  
+    top: 12px;  /* align with Input */
+  }
+  
+  .MuiSlider-thumbColorPrimary {
+    width: 2px;
+    height: 15px;
+  }
+  
+  .tiny {
+    font-size: 70%;
+    position: relative;
+    top: 1.5em;
+    color: silver;
+    vertical-align: bottom;
+  }
+}

@@ -1,15 +1,34 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
-import {Provider} from 'react-redux';
-import './index.css';
+import { createRoot } from 'react-dom/client';
+import { Provider } from 'react-redux';
+import { HashRouter as Router } from 'react-router-dom';
+import { store } from './store/Store';
 import App from './App';
-import {store} from './store/store';
+import ScrollToTop from './scrollToTop';
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
+import './index.css';
+
+const container = document.getElementById('root');
+const root = createRoot(container);
+
+// breaks Map:
+/*
+  root.render(
+    <React.StrictMode>
+      <Router>
+        <Provider store={store}>
+          <App />
+        </Provider>
+      </Router>
+    </React.StrictMode>
+  );
+*/
+
 root.render(
-  <React.StrictMode>
+  <Router>
     <Provider store={store}>
+      <ScrollToTop />
       <App />
     </Provider>
-  </React.StrictMode>
+  </Router>,
 );
