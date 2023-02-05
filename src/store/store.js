@@ -56,7 +56,8 @@ const initialState = {
   // hidden: true,
   // label: '...',
   // unit: '...',
-  // description: <>...</>
+  // description: <>...</>,
+  // options: []
   Biology: {
     es: {
       value: 0.06,
@@ -528,6 +529,220 @@ const initialState = {
     },
 
   },
+  Solute: {
+    id: {
+      value: '',
+    },
+    Name: {
+      value: '',
+    },
+    EPSI: {
+      value: '',
+    },
+    IUPW: {
+      value: '',
+    },
+    CourMax: {
+      value: '',
+    },
+    Diffusion_Coeff: {
+      label: 'Diffusion Coefficient',
+      value: '',
+    },
+  },
+  Dispersivity: {
+    id: {
+      value: '',
+    },
+    texturecl: {
+      value: '',
+      description: <>Soil texture class, i.e. silty clay, sandy, etc</>,
+    },
+    alpha: {
+      value: '',
+      description: <>Tortuosity factor - from the literature</>,
+    },
+  },
+  Corn: {
+    id: {
+      value: '',
+    },
+    hybridname: {
+      value: '',
+      label: <>Hybrid Name</>,
+    },
+    gdd2mat: {
+      value: '',
+      label: <>Growing degree days to maturity (not used at this time)</>,
+    },
+    juvenileleaves: {
+      value: 17,
+      label: <>Juvenile Leaves</>,
+      unit: <>leaves</>,
+    },
+    croplinkid: {
+      value: '',
+    },
+    DaylengthSensitive: {
+      value: 1,
+      label: <>1 if variety flowering time depends on daylength</>,
+    },
+    Rmax_LTAR: {
+      value: 0.53,
+      label: <>Leaf tip appearance rate at optimum temperature</>,
+      unit: <>leaves per day</>,
+    },
+    Rmax_LTIR: {
+      value: 0.978,
+      label: <>Leaf tip initiation rate at optimum temperature</>,
+      unit: <>leaves per day</>,
+    },
+    PhyllFrmTassel: {
+      value: 3,
+      label: <>number of phyllocrons from tassel appearance that silks appear</>,
+      unit: <>leaves per day</>,
+      description: <>if the time it takes for 3 leaves to appear is the same as the time it takes for the silks to appear after tassel then the value would be 3</>,
+    },
+    StayGreen: {
+      value: 3,
+      label: <>relative amount of time that senescence is delayed</>,
+      description: <>increasing this value will delay senescense</>,
+    },
+    LM_Min: {
+      value: 110,
+      label: <>Potential Length of the longest leaf</>,
+      unit: <>cm</>,
+    },
+    RRRM: {
+      value: 166.7,
+      label: <>Radial Resistance of Old Roots per cm of Root in Soil Cell</>,
+      unit: <>bar.hr/g</>,
+    },
+    RRRY: {
+      value: 31.3,
+      label: <>Radial Resistance of Young Roots per cm of Root in Soil Cell</>,
+      unit: <>bar.hr/g</>,
+    },
+    RVRL: {
+      value: 0.73,
+      label: <>Root Vascylar Resistance per cm of Root</>,
+      unit: <>bar.hr/g</>,
+    },
+    ALPM: {
+      value: 0.55,
+      label: <>relative growth rate of mature leaves</>,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    ALPY: {
+      value: 0.04,
+      label: <>relative growth rate of young leaves</>,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    RTWL: {
+      value: 0.0001059,
+      label: <>Average Root Dry  Weight per Unit Length</>,
+      unit: <>g/cm</>,
+    },
+    RTMinWTperArea: {
+      value: 0.0002,
+      label: <>minimum root weight per unit area</>,
+      unit: <>g/cm</>,
+    },
+    EPSI: {
+      value: 1,
+      label: <>factor to weight N from the previous time step (usually 1 for the current setup)</>,
+    },
+    lUpW: {
+      value: 1,
+      label: <>Upstream weighting factor</>,
+    },
+    CourMax: {
+      value: 1,
+      label: <>Courant number for weighting time steps</>,
+    },
+    Diffx: {
+      value: 2.4,
+      label: <>diffusion coefficient for root growth in the x direction</>,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    Diffz: {
+      value: 2.9,
+      label: <>diffusion coefficient for root growth in the y direction</>,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    VelZ: {
+      value: 0,
+      label: <>downward growth rate in response to gravity</>,
+      unit:
+  <>
+    day
+    <sup>-1</sup>
+  </>,
+    },
+    Isink: {
+      value: 1,
+      label: <>method to calculate sink for nitrogen uptake</>,
+    },
+    Rroot: {
+      value: 0.017,
+      unit: <>average radius of root, cn</>,
+    },
+    ConstI_M: {
+      value: 35,
+      description: <>These are parameters of the Michalis_Menton equation (see below) for convective - diffusive uptake of N, Maximum uptake rate of NO3, mg d-1 cm root-1 for mature roots</>,
+    },
+    ConstK_M: {
+      value: 0.5,
+      unit: <>umolNO3/cm3</>,
+      description: <>MM coefficient for mature roots</>,
+    },
+    Cmin0_M: {
+      value: 0.01,
+      unit: <>umol NO3/cm3</>,
+      description: <>miniumum conc NO3 at the root surface for mature roots</>,
+    },
+    ConstI_Y: {
+      value: 17.2,
+      unit: <>mg d-1 cm root-1</>,
+      description: <>Maximum uptake rate of NO3, mg d-1 cm root-1 for young roots</>,
+    },
+    ConstK_Y: {
+      value: 0.75,
+      unit: <>umolNO3/cm3</>,
+      description: <>MM coefficient for young roots</>,
+    },
+    Cmin0_Y: {
+      value: 0.03,
+      unit: <>umol NO3/cm3</>,
+      description: <>minimum conc NO3 at the root surface for young roots</>,
+    },
+  },
+  Crops: {
+    id: {
+      value: '',
+    },
+    cropname: {
+      value: '',
+      label: <>Crop Name</>,
+      options: ['Corn', 'Soybean', 'Potato'],
+    },
+  },
 };
 
 const fetchSSURGOWater = (state) => {
@@ -576,7 +791,7 @@ export const rosetta = (soildata) => {
 
   api({
     // url: 'https://www.handbook60.org/api/v1/rosetta/1', // doesn't support CORS
-    url: 'http://localhost:80/rosetta',
+    url: 'https://weather.covercrop-data.org/rosetta',
     options: {
       method: 'post',
       soildata: rosettaData,
