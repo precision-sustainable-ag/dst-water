@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 // // code breaking eslint rules were disabled --- MILAD
 /* eslint-disable no-alert */
 /* eslint-disable camelcase */
@@ -5,9 +6,12 @@
 /* eslint-disable no-use-before-define */
 
 import React from 'react';
+// eslint-disable-next-line no-unused-vars
+import { current } from '@reduxjs/toolkit';
 import { createStore, set } from './redux-autosetters';
 
 const initialState = {
+  newData: '',
   focus: '',
   name: '',
   email: '',
@@ -59,6 +63,10 @@ const initialState = {
   // description: <>...</>,
   // options: []
   Biology: {
+    id: {
+      value: '',
+      hidden: true,
+    },
     es: {
       value: 0.06,
       unit: <>fraction</>,
@@ -116,6 +124,22 @@ const initialState = {
     },
   },
   Climate: {
+    climateid: {
+      value: '',
+      hidden: true,
+    },
+    location: {
+      value: '',
+      hidden: true,
+    },
+    latitude: {
+      value: '',
+      hidden: true,
+    },
+    longitude: {
+      value: '',
+      hidden: true,
+    },
     dailybulb: {
       value: 'Daily',
       options: ['Daily', 'Hourly'],
@@ -199,6 +223,10 @@ const initialState = {
     },
   },
   GridRatio: {
+    soilfile: {
+      value: '',
+      hidden: true,
+    },
     sr1: {
       label: <>Surface nodes spacing ratio</>,
       value: 1.001,
@@ -532,20 +560,18 @@ const initialState = {
   Solute: {
     id: {
       value: '',
+      hidden: true,
     },
-    Name: {
+    epsi: {
       value: '',
     },
-    EPSI: {
+    lupw: {
       value: '',
     },
-    IUPW: {
+    courmax: {
       value: '',
     },
-    CourMax: {
-      value: '',
-    },
-    Diffusion_Coeff: {
+    diffusion_coeff: {
       label: 'Diffusion Coefficient',
       value: '',
     },
@@ -771,10 +797,32 @@ const fetchSSURGOWater = (state) => {
   });
 }; // fetchSSURGOWater
 
-const ac = {
+const afterChange = {
   lat: (state) => fetchSSURGOWater(state),
   lon: (state) => fetchSSURGOWater(state),
-};
+  site: (state) => {
+    const desc = state.xl.Description.find((obj) => obj.path === state.site);
+
+    ['Biology', 'Climate', 'GridRatio', 'Solute'].forEach((type) => {
+      let index = 0;
+
+      if (type === 'Climate') {
+        index = state.xl.Climate.findIndex((obj) => obj.climateid === desc.climateid);
+        console.log(index);
+      } else if (type === 'GridRatio') {
+        index = state.xl.GridRatio.findIndex((obj) => obj.soilfile === desc.soilfile);
+      }
+
+      Object.keys(state.xl[type][index]).forEach((key) => {
+        if (key in state[type]) {
+          state[type][key].value = state.xl[type][index][key];
+        } else {
+          console.log(type, key);
+        }
+      });
+    });
+  },
+}; // afterChange
 
 export const rosetta = (soildata) => {
   const rosettaData = soildata.map((row) => {
@@ -857,7 +905,7 @@ export const rosetta = (soildata) => {
 
 const reducers = {};
 
-export const store = createStore(initialState, { afterChange: ac, reducers });
+export const store = createStore(initialState, { afterChange, reducers });
 
 export const api = ({
   url, options = {}, callback, timer = url, delay = 0,

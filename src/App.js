@@ -176,6 +176,4 @@ const App = () => {
   );
 }; // App
 
-document.title = 'Water DST';
-
 export default App;

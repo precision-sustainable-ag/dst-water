@@ -5,10 +5,11 @@
 /* eslint-disable max-len */
 /* eslint-disable no-alert */
 /* eslint-disable no-use-before-define */
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import Dropzone from 'react-dropzone';
 
 import { get, set } from '../../store/Store';
 import createSoilFiles from './createsoilfiles';
@@ -24,6 +25,9 @@ comp.split('___________').forEach((s) => {
 });
 
 const cols = (...data) => data.map((d) => {
+  if (d.toString().length > 14) {
+    d = Math.round(d, 8);
+  }
   if (+d >= 0) return (` ${d.toString()}`).padEnd(14);
   if (+d < 0) return d.toString().padEnd(14);
   return `'${d}'`.padEnd(14);
@@ -185,7 +189,6 @@ const SoilFiles = () => {
     }; // dbRecord
 
     const output = (path, s) => {
-      console.log('output', path);
       const spaces = ' '.repeat(s.match(/ +/)[0].length);
       const re = new RegExp(`^${spaces}`, 'mg');
 
@@ -855,36 +858,106 @@ const Worksheet = () => {
   const xl = useSelector(get.xl);
   const data = useSelector(get.data);
   const button = useSelector(get.worksheetName);
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = (acceptedFiles) => {
+    const file = acceptedFiles[0];
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      dispatch(set.data(''));
+      dispatch(set.newData(e.target.result));
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const handlePaste = useCallback((event) => {
+    const clipboardData = event.clipboardData || window.clipboardData;
+    const { items } = clipboardData;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.kind === 'file' && /excel|spreadsheetml/.test(item.type)) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          dispatch(set.data(''));
+          dispatch(set.newData(e.target.result));
+        };
+        const file = item.getAsFile();
+        reader.readAsArrayBuffer(file);
+        event.preventDefault();
+        return;
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('paste', handlePaste);
+
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [handlePaste]);
 
   return (
-    <div className="Worksheet">
-      <div
-        role="button"
-        tabIndex="0"
-        onKeyDown={() => null}
-        onClick={(e) => {
-          const b = e.target;
-          if (b.tagName === 'BUTTON') {
-            const text = b.textContent;
-            dispatch(set.worksheetName(text));
-            if (text !== 'Output') {
-              dispatch(set.worksheet(xl[text]));
+    <div
+      className="Worksheet"
+      onDragEnter={() => setDragging(true)}
+      onDrop={() => setDragging(false)}
+      style={{ height: '100vh' }}
+    >
+      <p>Drag or paste an Excel file here, then select the site from the upper-right dropdown.</p>
+      <Dropzone onDrop={handleDrop}>
+        {({ getRootProps, getInputProps }) => (
+          <div
+            {...getRootProps()}
+            style={{
+              border: '1px dashed black',
+              padding: 20,
+              display: dragging ? 'block' : 'none',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              height: '100vh',
+              width: '100vw',
+              background: '#eee',
+              zIndex: 10000,
+            }}
+          >
+            <input {...getInputProps()} />
+            Drag and drop an Excel file here
+          </div>
+        )}
+      </Dropzone>
+      {
+        xl.Description.length > 0 && (
+          <div
+            role="button"
+            tabIndex="0"
+            onKeyDown={() => null}
+            onClick={(e) => {
+              const b = e.target;
+              if (b.tagName === 'BUTTON') {
+                const text = b.textContent;
+                dispatch(set.worksheetName(text));
+                if (text !== 'Output') {
+                  dispatch(set.worksheet(xl[text]));
+                }
+              }
+            }}
+          >
+            {
+              ['Output', ...Object.keys(xl)].map((key) => (
+                <button
+                  type="button"
+                  key={key}
+                  className={key === button ? 'selected' : ''}
+                >
+                  {key}
+                </button>
+              ))
             }
-          }
-        }}
-      >
-        {
-          ['Output', ...Object.keys(xl)].map((key) => (
-            <button
-              type="button"
-              key={key}
-              className={key === button ? 'selected' : ''}
-            >
-              {key}
-            </button>
-          ))
-        }
-      </div>
+          </div>
+        )
+      }
       {data && (
         button === 'Output' ? <SoilFiles /> : <WorksheetData />
       )}
