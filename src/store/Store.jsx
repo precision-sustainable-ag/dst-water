@@ -11,6 +11,7 @@ import { current } from '@reduxjs/toolkit';
 import { createStore, set } from './redux-autosetters';
 
 const initialState = {
+  start: 0,
   newData: '',
   focus: '',
   name: '',
@@ -34,7 +35,7 @@ const initialState = {
   privacy: false,
   site: '',
   sites: [],
-  worksheetName: '',
+  button: '',
   worksheet: [],
   data: '',
   xl: {
@@ -897,7 +898,7 @@ export const rosetta = (soildata) => {
       });
 
       const state = store.getState();
-      store.dispatch(set.soilfiles({ ...state.soilfiles, 'meadir_run_01.soi': s }));
+      store.dispatch(set.soilfiles({ ...state.soilfiles, 'MeadIr_run_01.soi': s }));
       // console.log('ok');
     },
   });

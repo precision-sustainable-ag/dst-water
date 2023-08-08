@@ -5,7 +5,11 @@
 /* eslint-disable max-len */
 /* eslint-disable no-alert */
 /* eslint-disable no-use-before-define */
-import React, { useEffect, useCallback, useState } from 'react';
+import React, {
+  useEffect, useCallback, useState,
+} from 'react';
+
+import { SSE } from 'sse.js'; // SSE with POST
 import { useSelector, useDispatch } from 'react-redux';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -16,6 +20,13 @@ import createSoilFiles from './createsoilfiles';
 import './styles.scss';
 
 import { comp } from './comp';
+
+console.log(SSE);
+
+let globalButton;
+let globalFiles = {
+  Progress: '',
+};
 
 const comps = {};
 
@@ -77,6 +88,14 @@ const dateFormat = (date) => {
 const WorksheetData = () => {
   const data = useSelector(get.worksheet);
   const site = useSelector(get.site);
+
+  if (typeof data === 'string') {
+    return (
+      <pre className="data" tabIndex={1}>
+        {data}
+      </pre>
+    );
+  }
 
   if (!data.length) {
     return null;
@@ -201,7 +220,7 @@ const SoilFiles = () => {
       const rec = dbRecord('Description', site);
       const biology = rec.Biology;
       // const path = `${rec.Path}\\${biology}.bio`;
-      const path = 'biologydefault.bio';
+      const path = 'BiologyDefault.bio';
 
       return (
         xl.Biology
@@ -257,7 +276,7 @@ const SoilFiles = () => {
       soilFile = descRec.SoilFile;
 
       // const path = `${descRec.Path}\\${solFile}.sol`;
-      const path = 'nitrogendefault.sol';
+      const path = 'NitrogenDefault.sol';
 
       const soilRecs = dbRecord('Soil', soilFile);
 
@@ -311,7 +330,7 @@ const SoilFiles = () => {
       const CO2ID = descRec.Gas_CO2;
       const O2ID = descRec.Gas_O2;
       // const path = `${descRec.Gas_File}.gas`;
-      const path = 'gasid.gas';
+      const path = 'GasID.gas';
 
       const CO2Rec = dbRecord('Gas', CO2ID);
       const O2Rec = dbRecord('Gas', O2ID);
@@ -431,7 +450,7 @@ const SoilFiles = () => {
       const idStrMulchDecomp = descRec.MulchDecomp;
       const idStrMulchGeo = descRec.MulchGeo;
       // const path = `${idStrMulchGeo}.mul`;
-      const path = 'mulchgeo1.mul';
+      const path = 'MulchGeo1.mul';
 
       const mulchRec = dbRecord('MulchGeo', idStrMulchGeo);
       const mulchDecompRec = dbRecord('MulchDecomp', idStrMulchDecomp);
@@ -533,7 +552,7 @@ const SoilFiles = () => {
     const writeVar = () => { // TODO: 0.0001059 becomes 0.000106.  May not matter
       const descRec = dbRecord('Description', site);
       // const path = `${descRec.Path}\\${descRec.VarietyFile}`;
-      const path = 'pn_33b51.var';
+      const path = 'Pn_33B51.var';
 
       const varietyRec = dbRecord('Variety', descRec.Hybrid);
 
@@ -592,7 +611,7 @@ const SoilFiles = () => {
     const writeClim = () => {
       const descRec = dbRecord('Description', site);
       // const path = descRec.ClimateFile;
-      const path = 'agmip2climate.dat';
+      const path = 'Agmip2Climate.dat';
 
       climateID = descRec.ClimateID;
       const climateRec = dbRecord('Climate', climateID);
@@ -641,7 +660,7 @@ const SoilFiles = () => {
     const writeNit = () => {
       // const descRec = dbRecord('Description', site);
       // const path = descRec.NitrogenFile;
-      const path = 'agmip.nit';
+      const path = 'AgMip.nit';
       const soilRecs = dbRecord('Soil', soilFile);
       const maxX = dbRecord('Init', site)['RowSpacing(cm)'] / 2 / (100 * 2);
 
@@ -729,7 +748,13 @@ const SoilFiles = () => {
     createSoilFiles(files);
   }; // getSoilFiles
 
-  const files = {};
+  const files = {
+    Progress: '',
+  };
+
+  globalFiles = {
+    Progress: '',
+  };
 
   const dispatch = useDispatch();
   const xl = useSelector(get.xl);
@@ -738,7 +763,6 @@ const SoilFiles = () => {
   getSoilFiles();
 
   useEffect(() => {
-    console.log('ok');
     dispatch(set.soilfiles(files));
   });
 
@@ -763,8 +787,9 @@ const SoilFiles2 = () => {
     const s2 = rep(files[file]);
 
     if (s2 && s1 !== s2) {
-      console.log('_________________');
-      console.log(`%c${file}`, 'text-decoration: underline; font-weight: bold; color: brown;');
+      return;
+      // console.log('_________________');
+      // console.log(`%c${file}`, 'text-decoration: underline; font-weight: bold; color: brown;');
       const c = rep(comps[file]).split(/[\n\r]/);
       const f = rep(files[file]).split(/[\n\r]/);
 
@@ -772,7 +797,7 @@ const SoilFiles2 = () => {
         if (rep(cc) !== rep(f[i])) {
           for (let j = 0; j < cc.length; j++) {
             if (cc[j] !== f[i][j]) {
-              console.log(' ', c.slice(j - 10, j + 10), ':', f[i].slice(j - 10, j + 10));
+              // console.log(' ', c.slice(j - 10, j + 10), ':', f[i].slice(j - 10, j + 10));
               j += 9;
             }
           }
@@ -784,8 +809,65 @@ const SoilFiles2 = () => {
     return rep(s1) === rep(s2);
   }; // match
 
+  const dispatch = useDispatch();
   const files = useSelector(get.soilfiles);
   const site = useSelector(get.site);
+  const start = useSelector(get.start);
+  const nrows = 20;
+
+  const message = (e) => {
+    const progress = `${globalFiles.Progress + e.data.replace(/zzz/g, '\n')}\n`;
+
+    globalFiles = {
+      ...globalFiles,
+      Progress: progress,
+    };
+
+    dispatch(set.soilfiles(globalFiles));
+
+    if (globalButton === 'Progress') {
+      dispatch(set.worksheet(progress));
+    }
+    console.log(e.data);
+  };
+
+  const file = (e) => {
+    globalFiles = {
+      ...globalFiles,
+      [e.id]: e.data.replace(/zzz/g, '\n'), // sse.js bug
+    };
+
+    dispatch(set.soilfiles(globalFiles));
+
+    if (globalButton === 'Progress') {
+      dispatch(set.worksheet(progress));
+    }
+    console.log(e.data);
+  };
+
+  const runModel = () => {
+    console.clear();
+    progress = '';
+
+    const evtSource = new SSE('https://api.precisionsustainableag.org/maizsim');
+    evtSource.stream();
+
+    evtSource.addEventListener('file', file);
+
+    evtSource.addEventListener('message', message);
+
+    evtSource.onclose = (e) => {
+      console.log('closed');
+      console.log(e);
+      evtSource.close();
+    };
+
+    evtSource.onerror = (e) => {
+      console.log('error');
+      console.log(e);
+      evtSource.close();
+    };
+  };
 
   return (
     <div tabIndex={1}>
@@ -825,7 +907,14 @@ const SoilFiles2 = () => {
         Download
       </button>
 
-      {Object.keys(files).map((file) => {
+      <button
+        type="button"
+        onClick={runModel}
+      >
+        Run Model
+      </button>
+
+      {Object.keys(files).filter((file) => false && file === 'Progress').map((file) => {
         let cname = '';
 
         if (site === 'run_01') {
@@ -840,11 +929,53 @@ const SoilFiles2 = () => {
           }
         }
 
+        const data = files[file].split('\n');
+        if (file === 'Pn_33B51.var') {
+          console.log(data.length * 24);
+        }
         return (
           <section key={file} className={cname}>
             <details open>
               <summary>{file}</summary>
-              <pre>{files[file]}</pre>
+              <div
+                style={{
+                  overflow: 'auto',
+                  height: 'calc(21 * 24px)',
+                  position: 'relative',
+                  background: 'lightyellow',
+                }}
+                tabIndex="1"
+                onScroll={(e) => {
+                  const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
+                  document.body.style.overflow = 'hidden';
+                  window.scrollTo(0, currentScrollPosition);
+
+                  const top = e.currentTarget.scrollTop;
+                  dispatch(set.start(Math.round(top / 24)));
+                  document.body.style.overflow = 'auto';
+
+                  e.preventDefault();
+                }}
+              >
+                <div
+                  style={{
+                    height: data.length * 24,
+                  }}
+                >
+                  <pre
+                    style={{
+                      position: 'absolute',
+                      width: '100%',
+                      top: start * 24,
+                      // fontSize: 12,
+                      lineHeight: '24px',
+                      border: 'none',
+                    }}
+                  >
+                    {data.slice(start, start + nrows).join('\n')}
+                  </pre>
+                </div>
+              </div>
             </details>
           </section>
         );
@@ -853,11 +984,51 @@ const SoilFiles2 = () => {
   );
 }; // SoilFiles2
 
+let progress = '';
+const SoilFiles3 = () => {
+  const dispatch = useDispatch();
+  const files = useSelector(get.soilfiles);
+  const button = useSelector(get.button);
+
+  if (!Object.keys(files).length) {
+    return null;
+  }
+
+  return (
+    <>
+      <hr />
+      {
+        Object.keys(files)
+          .sort((a, b) => (
+            a.replace('Progress', '').toUpperCase().localeCompare(b.replace('Progress', '').toUpperCase())
+          ))
+          .map((key) => (
+            <div>
+              <button
+                type="button"
+                key={key}
+                className={key === button ? 'selected' : ''}
+                style={{ width: '8rem', textAlign: 'left' }}
+                onClick={() => {
+                  dispatch(set.button(key));
+                  globalButton = key;
+                  dispatch(set.worksheet(files[key]));
+                }}
+              >
+                {key}
+              </button>
+            </div>
+          ))
+      }
+    </>
+  );
+}; // SoilFiles3
+
 const Worksheet = () => {
   const dispatch = useDispatch();
   const xl = useSelector(get.xl);
   const data = useSelector(get.data);
-  const button = useSelector(get.worksheetName);
+  const button = useSelector(get.button);
   const [dragging, setDragging] = useState(false);
 
   const handleDrop = (acceptedFiles) => {
@@ -929,33 +1100,26 @@ const Worksheet = () => {
       </Dropzone>
       {
         xl.Description.length > 0 && (
-          <div
-            role="button"
-            tabIndex="0"
-            onKeyDown={() => null}
-            onClick={(e) => {
-              const b = e.target;
-              if (b.tagName === 'BUTTON') {
-                const text = b.textContent;
-                dispatch(set.worksheetName(text));
-                if (text !== 'Output') {
-                  dispatch(set.worksheet(xl[text]));
-                }
-              }
-            }}
-          >
+          <>
             {
               ['Output', ...Object.keys(xl)].map((key) => (
                 <button
                   type="button"
                   key={key}
                   className={key === button ? 'selected' : ''}
+                  onClick={() => {
+                    dispatch(set.button(key));
+                    if (key !== 'Output') {
+                      dispatch(set.worksheet(xl[key]));
+                    }
+                  }}
                 >
                   {key}
                 </button>
               ))
             }
-          </div>
+            <SoilFiles3 />
+          </>
         )
       }
       {data && (

@@ -8,7 +8,7 @@ import { dataTable } from './utilities';
 import { rosetta } from '../../store/Store';
 
 const site = 'run_01'; // TODO
-const soilFile = 'meadir_run_01.dat'; // TODO
+const soilFile = 'MeadIr_run_01.dat'; // TODO
 
 // ____________________________________________________________________________________________________________________________________
 const createSoilFiles = (files) => {
