@@ -1,10 +1,6 @@
-/* eslint-disable jsx-a11y/tabindex-no-positive */
+/* eslint-disable max-len, no-alert, no-console */
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex */
-/* eslint-disable no-console */
-/* eslint-disable no-shadow */
-/* eslint-disable max-len */
-/* eslint-disable no-alert */
-/* eslint-disable no-use-before-define */
+
 import React, {
   useEffect, useCallback, useState,
 } from 'react';
@@ -21,8 +17,6 @@ import './styles.scss';
 
 import { comp } from './comp';
 
-console.log(SSE);
-
 let globalButton;
 let globalFiles = {
   Progress: '',
@@ -34,6 +28,44 @@ comp.split('___________').forEach((s) => {
   s = s.trim().split(/[\n\r]+/);
   comps[s[0].trim().toLowerCase()] = s.slice(1).join('\n').trim();
 });
+
+// const match = (file) => {
+//   const rep = (s) => {
+//     if (!s) return s;
+
+//     s = s.replace(/'(\d+)\/(\d+)\/(\d+)'/g, (_, m, d, y) => `zzz'${+m}/${+d}/${+y}'`); // dates
+//     s = s.replace(/\d+\.?\d+/g, (d) => (+d).toFixed(2)); // numbers
+//     s = s.replace(/[\t ]+/g, ' '); // tabs and spaces
+//     s = s.replace(/\s*[\n\r]+\s*/g, '\r'); // collapse newlines
+//     s = s.trim();
+
+//     return s;
+//   };
+
+//   const s1 = rep(comps[file]);
+//   const s2 = rep(files[file]);
+
+//   if (s2 && s1 !== s2) {
+//     // console.log('_________________');
+//     // console.log(`%c${file}`, 'text-decoration: underline; font-weight: bold; color: brown;');
+//     const c = rep(comps[file]).split(/[\n\r]/);
+//     const f = rep(files[file]).split(/[\n\r]/);
+
+//     c.forEach((cc, i) => {
+//       if (rep(cc) !== rep(f[i])) {
+//         for (let j = 0; j < cc.length; j++) {
+//           if (cc[j] !== f[i][j]) {
+//             // console.log(' ', c.slice(j - 10, j + 10), ':', f[i].slice(j - 10, j + 10));
+//             j += 9;
+//           }
+//         }
+//       }
+//     });
+//     // console.log('_________________');
+//   }
+
+//   return rep(s1) === rep(s2);
+// }; // match
 
 const cols = (...data) => data.map((d) => {
   if (d.toString().length > 14) {
@@ -91,7 +123,7 @@ const WorksheetData = () => {
 
   if (typeof data === 'string') {
     return (
-      <pre className="data" tabIndex={1}>
+      <pre className="data" tabIndex={0}>
         {data}
       </pre>
     );
@@ -101,22 +133,22 @@ const WorksheetData = () => {
     return null;
   }
 
-  const cols = Object.keys(data[0]);
+  const cols2 = Object.keys(data[0]);
 
   data.forEach((row) => { // first row may be missing data
     Object.keys(row).forEach((col) => {
-      if (!cols.includes(col)) {
-        cols.push(col);
+      if (!cols2.includes(col)) {
+        cols2.push(col);
       }
     });
   });
 
   return (
-    <div className="data" tabIndex={1}>
+    <div className="data" tabIndex={0}>
       <table>
         <thead>
           <tr>
-            {cols.map((key) => <th key={key}>{key}</th>)}
+            {cols2.map((key) => <th key={key}>{key}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -124,7 +156,7 @@ const WorksheetData = () => {
             data.map((row, i) => (
               <tr key={i} className={JSON.stringify(row).includes(site) ? 'selected' : ''}>
                 {
-                  cols.map((key) => (
+                  cols2.map((key) => (
                     <td key={key}>
                       {
                         Number.isFinite(row[key]) ? +(+row[key]).toFixed(5) : row[key]
@@ -142,37 +174,17 @@ const WorksheetData = () => {
 }; // WorksheetData
 
 const SoilFiles = () => {
+  const dispatch = useDispatch();
+  const xl = useSelector(get.xl);
+  const site = useSelector(get.site);
+
+  const files = {
+    Progress: '',
+  };
+
   const getSoilFiles = () => {
     let soilFile;
     let climateID;
-
-    const max = (table, id, col) => Math.max(...dbRecord(table, id).map((d) => +d[col])); // max
-    const noe = (n, round = 16) => (+n).toFixed(round).replace(/0+$/, '').replace(/\.$/, '');
-
-    const dbRecords = (table, id) => {
-      let key;
-      if (table === 'Soil') {
-        key = 'soilfile';
-      } else if (table === 'GridRatio') {
-        key = 'soilfile';
-      } else if (table === 'Climate') {
-        key = 'climateid';
-      } else if (table === 'Weather') {
-        key = 'climateid';
-      } else if (table === 'Variety') {
-        key = 'hybrid';
-      } else {
-        key = 'id';
-      }
-
-      if (!xl[table]) {
-        alert(`dbRecords('${table}')`);
-      }
-
-      const recs = xl[table].filter((d) => d[key] === id);
-
-      return recs;
-    }; // dbRecords
 
     const dbRecord = (table, id) => {
       let key;
@@ -206,6 +218,34 @@ const SoilFiles = () => {
       }
       return null;
     }; // dbRecord
+
+    const max = (table, id, col) => Math.max(...dbRecord(table, id).map((d) => +d[col])); // max
+    const noe = (n, round = 16) => (+n).toFixed(round).replace(/0+$/, '').replace(/\.$/, '');
+
+    const dbRecords = (table, id) => {
+      let key;
+      if (table === 'Soil') {
+        key = 'soilfile';
+      } else if (table === 'GridRatio') {
+        key = 'soilfile';
+      } else if (table === 'Climate') {
+        key = 'climateid';
+      } else if (table === 'Weather') {
+        key = 'climateid';
+      } else if (table === 'Variety') {
+        key = 'hybrid';
+      } else {
+        key = 'id';
+      }
+
+      if (!xl[table]) {
+        alert(`dbRecords('${table}')`);
+      }
+
+      const recs = xl[table].filter((d) => d[key] === id);
+
+      return recs;
+    }; // dbRecords
 
     const output = (path, s) => {
       const spaces = ' '.repeat(s.match(/ +/)[0].length);
@@ -617,8 +657,7 @@ const SoilFiles = () => {
       const climateRec = dbRecord('Climate', climateID);
       let weatherRec = dbRecord('Weather', climateID);
       if (weatherRec.length) {
-        // eslint-disable-next-line prefer-destructuring
-        weatherRec = weatherRec[0];
+        [weatherRec] = weatherRec;
       }
 
       let averageHeader = '';
@@ -748,17 +787,9 @@ const SoilFiles = () => {
     createSoilFiles(files);
   }; // getSoilFiles
 
-  const files = {
-    Progress: '',
-  };
-
   globalFiles = {
     Progress: '',
   };
-
-  const dispatch = useDispatch();
-  const xl = useSelector(get.xl);
-  const site = useSelector(get.site);
 
   getSoilFiles();
 
@@ -766,67 +797,27 @@ const SoilFiles = () => {
     dispatch(set.soilfiles(files));
   });
 
-  return <SoilFiles2 />;
+  return <Output />;
 }; // SoilFiles
 
-const SoilFiles2 = () => {
-  const match = (file) => {
-    const rep = (s) => {
-      if (!s) return s;
-
-      s = s.replace(/'(\d+)\/(\d+)\/(\d+)'/g, (_, m, d, y) => `zzz'${+m}/${+d}/${+y}'`); // dates
-      s = s.replace(/\d+\.?\d+/g, (d) => (+d).toFixed(2)); // numbers
-      s = s.replace(/[\t ]+/g, ' '); // tabs and spaces
-      s = s.replace(/\s*[\n\r]+\s*/g, '\r'); // collapse newlines
-      s = s.trim();
-
-      return s;
-    };
-
-    const s1 = rep(comps[file]);
-    const s2 = rep(files[file]);
-
-    if (s2 && s1 !== s2) {
-      return;
-      // console.log('_________________');
-      // console.log(`%c${file}`, 'text-decoration: underline; font-weight: bold; color: brown;');
-      const c = rep(comps[file]).split(/[\n\r]/);
-      const f = rep(files[file]).split(/[\n\r]/);
-
-      c.forEach((cc, i) => {
-        if (rep(cc) !== rep(f[i])) {
-          for (let j = 0; j < cc.length; j++) {
-            if (cc[j] !== f[i][j]) {
-              // console.log(' ', c.slice(j - 10, j + 10), ':', f[i].slice(j - 10, j + 10));
-              j += 9;
-            }
-          }
-        }
-      });
-      // console.log('_________________');
-    }
-
-    return rep(s1) === rep(s2);
-  }; // match
-
+let progress = '';
+const Output = () => {
   const dispatch = useDispatch();
   const files = useSelector(get.soilfiles);
-  const site = useSelector(get.site);
-  const start = useSelector(get.start);
-  const nrows = 20;
+  const button = useSelector(get.button);
 
   const message = (e) => {
-    const progress = `${globalFiles.Progress + e.data.replace(/zzz/g, '\n')}\n`;
+    const progress2 = `${globalFiles.Progress + e.data.replace(/zzz/g, '\n')}\n`;
 
     globalFiles = {
       ...globalFiles,
-      Progress: progress,
+      Progress: progress2,
     };
 
     dispatch(set.soilfiles(globalFiles));
 
     if (globalButton === 'Progress') {
-      dispatch(set.worksheet(progress));
+      dispatch(set.worksheet(progress2));
     }
     console.log(e.data);
   };
@@ -842,7 +833,7 @@ const SoilFiles2 = () => {
     if (globalButton === 'Progress') {
       dispatch(set.worksheet(progress));
     }
-    console.log(e.data);
+    // console.log(e.data);
   };
 
   const runModel = () => {
@@ -869,134 +860,40 @@ const SoilFiles2 = () => {
     };
   };
 
-  return (
-    <div tabIndex={1}>
-      <button
-        type="button"
-        onClick={() => {
-          document.querySelectorAll('details').forEach((obj) => { obj.open = false; });
-        }}
-      >
-        Collapse all
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          document.querySelectorAll('details').forEach((obj) => { obj.open = true; });
-        }}
-      >
-        Expand all
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          if (Object.keys(files).length) {
-            const zip = new JSZip();
-            Object.keys(files).forEach((file) => {
-              zip.file(file, files[file]);
-            });
-
-            zip.generateAsync({ type: 'blob' }).then((content) => {
-              saveAs(content, 'output.zip');
-            });
-          }
-        }}
-      >
-        Download
-      </button>
-
-      <button
-        type="button"
-        onClick={runModel}
-      >
-        Run Model
-      </button>
-
-      {Object.keys(files).filter((file) => false && file === 'Progress').map((file) => {
-        let cname = '';
-
-        if (site === 'run_01') {
-          if (comps[file]) {
-            if (match(file)) {
-              cname = 'match';
-            } else {
-              cname = 'mismatch';
-            }
-          } else {
-            cname = 'missing';
-          }
-        }
-
-        const data = files[file].split('\n');
-        if (file === 'Pn_33B51.var') {
-          console.log(data.length * 24);
-        }
-        return (
-          <section key={file} className={cname}>
-            <details open>
-              <summary>{file}</summary>
-              <div
-                style={{
-                  overflow: 'auto',
-                  height: 'calc(21 * 24px)',
-                  position: 'relative',
-                  background: 'lightyellow',
-                }}
-                tabIndex="1"
-                onScroll={(e) => {
-                  const currentScrollPosition = window.pageYOffset || document.documentElement.scrollTop;
-                  document.body.style.overflow = 'hidden';
-                  window.scrollTo(0, currentScrollPosition);
-
-                  const top = e.currentTarget.scrollTop;
-                  dispatch(set.start(Math.round(top / 24)));
-                  document.body.style.overflow = 'auto';
-
-                  e.preventDefault();
-                }}
-              >
-                <div
-                  style={{
-                    height: data.length * 24,
-                  }}
-                >
-                  <pre
-                    style={{
-                      position: 'absolute',
-                      width: '100%',
-                      top: start * 24,
-                      // fontSize: 12,
-                      lineHeight: '24px',
-                      border: 'none',
-                    }}
-                  >
-                    {data.slice(start, start + nrows).join('\n')}
-                  </pre>
-                </div>
-              </div>
-            </details>
-          </section>
-        );
-      })}
-    </div>
-  );
-}; // SoilFiles2
-
-let progress = '';
-const SoilFiles3 = () => {
-  const dispatch = useDispatch();
-  const files = useSelector(get.soilfiles);
-  const button = useSelector(get.button);
-
   if (!Object.keys(files).length) {
     return null;
   }
 
   return (
-    <>
-      <hr />
+    <div className="sideButtons">
+      <div>
+        <button
+          type="button"
+          onClick={runModel}
+        >
+          Run model
+        </button>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => {
+            if (Object.keys(files).length) {
+              const zip = new JSZip();
+              Object.keys(files).forEach((file2) => {
+                zip.file(file2, files[file2]);
+              });
+
+              zip.generateAsync({ type: 'blob' }).then((content) => {
+                saveAs(content, 'output.zip');
+              });
+            }
+          }}
+        >
+          Download
+        </button>
+      </div>
       {
         Object.keys(files)
           .sort((a, b) => (
@@ -1008,7 +905,6 @@ const SoilFiles3 = () => {
                 type="button"
                 key={key}
                 className={key === button ? 'selected' : ''}
-                style={{ width: '8rem', textAlign: 'left' }}
                 onClick={() => {
                   dispatch(set.button(key));
                   globalButton = key;
@@ -1020,15 +916,40 @@ const SoilFiles3 = () => {
             </div>
           ))
       }
-    </>
+    </div>
   );
-}; // SoilFiles3
+}; // Output
+
+const Inputs = () => {
+  const dispatch = useDispatch();
+  const xl = useSelector(get.xl);
+  const button = useSelector(get.button);
+
+  return (
+    <div id="Inputs">
+      {
+        Object.keys(xl).map((key) => (
+          <button
+            type="button"
+            key={key}
+            className={key === button ? 'selected' : ''}
+            onClick={() => {
+              dispatch(set.button(key));
+              dispatch(set.worksheet(xl[key]));
+            }}
+          >
+            {key}
+          </button>
+        ))
+      }
+    </div>
+  );
+};
 
 const Worksheet = () => {
   const dispatch = useDispatch();
   const xl = useSelector(get.xl);
   const data = useSelector(get.data);
-  const button = useSelector(get.button);
   const [dragging, setDragging] = useState(false);
 
   const handleDrop = (acceptedFiles) => {
@@ -1073,58 +994,37 @@ const Worksheet = () => {
       className="Worksheet"
       onDragEnter={() => setDragging(true)}
       onDrop={() => setDragging(false)}
-      style={{ height: '100vh' }}
     >
       <p>Drag or paste an Excel file here, then select the site from the upper-right dropdown.</p>
-      <Dropzone onDrop={handleDrop}>
-        {({ getRootProps, getInputProps }) => (
-          <div
-            {...getRootProps()}
-            style={{
-              border: '1px dashed black',
-              padding: 20,
-              display: dragging ? 'block' : 'none',
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              height: '100vh',
-              width: '100vw',
-              background: '#eee',
-              zIndex: 10000,
-            }}
-          >
-            <input {...getInputProps()} />
-            Drag and drop an Excel file here
-          </div>
-        )}
-      </Dropzone>
+
       {
-        xl.Description.length > 0 && (
+        dragging && (
+          <Dropzone onDrop={handleDrop}>
+            {({ getRootProps, getInputProps }) => (
+              <div
+                {...getRootProps()}
+                className="dropZone"
+              >
+                <input {...getInputProps()} />
+                Drag and drop an Excel file here
+              </div>
+            )}
+          </Dropzone>
+        )
+      }
+
+      {
+        xl.Description.length > 0 && <Inputs />
+      }
+
+      {
+        data && (
           <>
-            {
-              ['Output', ...Object.keys(xl)].map((key) => (
-                <button
-                  type="button"
-                  key={key}
-                  className={key === button ? 'selected' : ''}
-                  onClick={() => {
-                    dispatch(set.button(key));
-                    if (key !== 'Output') {
-                      dispatch(set.worksheet(xl[key]));
-                    }
-                  }}
-                >
-                  {key}
-                </button>
-              ))
-            }
-            <SoilFiles3 />
+            <SoilFiles />
+            <WorksheetData />
           </>
         )
       }
-      {data && (
-        button === 'Output' ? <SoilFiles /> : <WorksheetData />
-      )}
     </div>
   );
 }; // Worksheet
