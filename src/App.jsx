@@ -13,17 +13,23 @@ import Help from './shared/Help';
 import './App.css';
 import 'react-datepicker/dist/react-datepicker.css';
 
-const screens = {
-  init: () => null,
-};
+import Init from './components/Init';
+import Home from './components/Home';
+import About from './components/About';
+import Location from './shared/Location';
+import Soil from './components/Soil';
+import Inputs from './components/Inputs';
+import Worksheet from './components/Worksheet';
 
-screens.init = require('./components/Init').default;
-screens.home = require('./components/Home').default;
-screens.about = require('./components/About').default;
-screens.location = require('./shared/Location').default;
-screens.soil = require('./components/Soil').default;
-screens.inputs = require('./components/Inputs').default;
-screens.worksheet = require('./components/Worksheet').default;
+const screens = {
+  init: Init,
+  home: Home,
+  about: About,
+  location: Location,
+  soil: Soil,
+  inputs: Inputs,
+  worksheet: Worksheet,
+};
 
 screens.init.showInMenu = false;
 
@@ -46,7 +52,7 @@ console.warn = (msg, ...subst) => {
   }
 };
 
-const Init = screens.init;
+// const Init = screens.init;
 
 const App = () => {
   const dispatch = useDispatch();
@@ -175,7 +181,5 @@ const App = () => {
     </div>
   );
 }; // App
-
-document.title = 'Water DST';
 
 export default App;

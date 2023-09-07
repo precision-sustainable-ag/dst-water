@@ -8,13 +8,13 @@ import { dataTable } from './utilities';
 import { rosetta } from '../../store/Store';
 
 const site = 'run_01'; // TODO
-const soilFile = 'meadir_run_01.dat'; // TODO
+const soilFile = 'MeadIr_run_01.dat'; // TODO
 
 // ____________________________________________________________________________________________________________________________________
 const createSoilFiles = (files) => {
   const fs = { // TODO
     writeFileSync: (path, s) => {
-      console.log(path);
+      // console.log(path);
       files[path] = s;
     },
   };
@@ -504,9 +504,9 @@ const createSoilFiles = (files) => {
   const [RowSpacing] = data[3];
   const [PlantingDepth, xRootExtent, rootweightperslab] = data[5];
   const [BottomBC, GasBCTop, GasBCBottom] = data[8];
-  console.log({
-    SurfaceIntervalRatio, FirstSurfaceInterval, InternalIntervalRatio, FirstInternalInterval, RowSpacing, PlantingDepth, xRootExtent, rootweightperslab, BottomBC, GasBCTop, GasBCBottom,
-  });
+  // console.log({
+  //   SurfaceIntervalRatio, FirstSurfaceInterval, InternalIntervalRatio, FirstInternalInterval, RowSpacing, PlantingDepth, xRootExtent, rootweightperslab, BottomBC, GasBCTop, GasBCBottom,
+  // });
 
   const dtLayers = dataTable(data.slice(11), [
     'Depth',

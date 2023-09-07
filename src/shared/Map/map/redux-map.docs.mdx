@@ -1,0 +1,119 @@
+---
+description: 'A Map component for DST-NCALC.'
+labels: ['GIS', 'Geospatial', 'Map', 'Mapbox', 'Agriculture', 'DST']
+---
+
+import ReduxMap from './redux-map';
+
+## React Component for rendering an interactive Map
+
+An Inherited Map component made using Mapbox GL from the Map component.
+
+### List of component properties:
+
+| Name | Type | Description |
+| ---- | ---- | ----------- |
+| `setAddress` | function | callback function to set the marker address text as its value |
+| `setFeatures` | function | callback function to set the drawn geometry as its value |
+| `setZoom` | function | callback function to set the map zoom level |
+| `setMap` | function | callback function to set the map object for manipulation |
+| `onDraw` | function | callback function to handle draw events. Ex: {mode: 'delete', e: event}  |
+| `initFeatures` | array | initial features or polygons to draw on the map |
+| `initWidth` | string | map width in css format string |
+| `initHeight` | string | map height in css format string |
+| `initAddress` | string | map initial address string shown in searchbar |
+| `initLon` | float | initial longitude of window center at the time of loading |
+| `initLat` | float | initial latitude of window center at the time of loading |
+| `initStartZoom` | float | initial zoom level at the time of loading. higher values are zoomed in and vise versa |
+| `initMinZoom` | float | minimum zoom level allowed (the most zoomed out) |
+| `initMaxZoom` | float | maximum zoom level allowed (the most zoomed in) |
+| `hasSearchBar` | boolian | if address search bar is enabled |
+| `hasMarker` | boolian | if marker is enabled and is included |
+| `hasNavigation` | boolian | if navigation panel is enabled |
+| `hasCoordBar` | boolian | if cursor coordinates panel in lat/lon is enabled |
+| `hasDrawing` | boolian | if geometry drawer panel is enabled |
+| `hasGeolocate` | boolian | if geolocation button is enabled |
+| `hasFullScreen` | boolian | if fullscreen button is enabled |
+| `hasMarkerPopup` | boolian | if marker popup window is enabled |
+| `hasMarkerMovable` | boolian | if marker can be dragged across the map by user |
+| `scrollZoom` | boolian | if scroll zooming of the map is enabled |
+| `dragRotate` | boolian | if drag rotation of the map is enabled |
+| `dragPan` | boolian | if panning via drag is enabled on the map |
+| `keyboard` | boolian | if keyboard shortcuts is enabled |
+| `doubleClickZoom` | boolian | if double click as zoom is enabled |
+| `touchZoomRotate` | boolian | if map can be rotated via touch on mobile |
+
+
+### Component usage
+
+```js
+<NcalcMap
+  setAddress={() => {}}
+  setFeatures={() => {}}
+  setZoom={() => {}}
+  setMap={() => {}}
+  onDraw ={() => {}}
+  initFeatures={[]}
+  initWidth="400px"
+  initHeight="300px"
+  initAddress=""
+  initLon={-80.16}
+  initLat={37.75}
+  initStartZoom={10}
+  initMinZoom={5}
+  initMaxZoom={16}
+  hasSearchBar={false}
+  hasMarker={false}
+  hasNavigation={false}
+  hasCoordBar={false}
+  hasDrawing={false}
+  hasGeolocate={false}
+  hasFullScreen={false}
+  hasMarkerPopup={false}
+  hasMarkerMovable={false}
+  scrollZoom={true}
+  dragRotate={true}
+  dragPan={true}
+  keyboard={true}
+  doubleClickZoom={false}
+  touchZoomRotate={true}
+/>
+```
+
+### Using props to customize the components
+
+Modify the text to see it change live:
+
+```js live
+<NcalcMap
+  setAddress={() => {}}
+  setFeatures={() => {}}
+  setZoom={() => {}}
+  setMap={() => {}}
+  onDraw ={() => {}}
+  initFeatures={[]}
+  initWidth="400px"
+  initHeight="500px"
+  initAddress=""
+  initLon={-80.16}
+  initLat={37.75}
+  initStartZoom={10}
+  initMinZoom={5}
+  initMaxZoom={16}
+  hasSearchBar={false}
+  hasMarker={false}
+  hasNavigation={false}
+  hasCoordBar={false}
+  hasDrawing={false}
+  hasGeolocate={false}
+  hasFullScreen={false}
+  hasMarkerPopup={false}
+  hasMarkerMovable={false}
+  scrollZoom={true}
+  dragRotate={true}
+  dragPan={true}
+  keyboard={true}
+  doubleClickZoom={false}
+  touchZoomRotate={true}
+/>
+```

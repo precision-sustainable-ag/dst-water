@@ -1,4 +1,44 @@
 .Worksheet {
+  height: calc(100vh - 17rem);
+
+  #Inputs {
+    width: 100%;
+    background: #eee;
+    border: 1px solid #aaa;
+    text-align: center;
+    padding-bottom: 0.2rem;
+  }
+
+  .dropZone {
+    border: 1px dashed black;
+    padding: 20;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100vw;
+    background: #eee;
+    z-index: 10000;
+  }
+
+  .sideButtons {
+    height: calc(100vh - 17rem);
+    width: 9rem;
+    background: #eee;
+    overflow: auto;
+    border: 1px solid #aaa;
+    
+    button {
+      width: 7.5rem;
+      text-align: left;
+      font-size: 9pt;
+    }
+  }
+
+  button {
+    margin: 0 0.2rem;
+  }
+  
   .selected {
     background: lightgreen;
   }
@@ -14,9 +54,16 @@
 
   .data, pre {
     width: 100%;
-    max-height: calc(100vh - 8rem);
+    max-height: calc(100vh - 17rem);
     overflow: auto;
     border: 1px solid #ccc;
+  }
+
+  .data {
+    position: absolute;
+    top: 15rem;
+    left: 12rem;
+    width: calc(100% - 15rem);
   }
 
   pre {
@@ -46,5 +93,5 @@
   
   .missing summary {
     background: red !important;
-  }  
+  }
 }

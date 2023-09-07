@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Map } from '@psa/dst.ui.map';
 import { useSelector, useDispatch } from 'react-redux';
-import mapboxgl from 'mapbox-gl';
 import { get, set } from '../../store/Store';
+import Map from './map';
+
 import './styles.scss';
-// eslint-disable-next-line import/no-webpack-loader-syntax, import/no-unresolved
-mapboxgl.workerClass = require('worker-loader!mapbox-gl/dist/mapbox-gl-csp-worker').default;
 
 let removedShapes = new Set();
 

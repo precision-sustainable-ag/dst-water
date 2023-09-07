@@ -1,3 +1,6 @@
+/* eslint-disable jsx-a11y/click-events-have-key-events */
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
+/* eslint-disable no-alert */
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -11,7 +14,14 @@ const Section = ({ title, section }) => {
   return (
     <>
       <thead>
-        <tr><th colSpan={4}>{title || section}</th></tr>
+        <tr>
+          <th
+            colSpan={4}
+            onClick={(e) => e.target.closest('thead').classList.toggle('closed')}
+          >
+            {title || section}
+          </th>
+        </tr>
       </thead>
       <tbody>
         {Object.keys(inputs).map((input) => {
@@ -51,6 +61,10 @@ const Inputs = () => (
       <Section section="GridRatio" />
       <Section section="Irrigation" />
       <Section section="Soil" />
+      <Section section="Dispersivity" />
+      <Section section="Solute" />
+      <Section section="Corn" />
+      <Section section="Crops" />
     </table>
 
     <div className="bn">
