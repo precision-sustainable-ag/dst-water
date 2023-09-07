@@ -1,0 +1,19 @@
+apiVersion : apps/v1
+kind: Deployment
+metadata:
+  name: dstwater 
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dstwater
+  template:
+    metadata:
+      labels:
+        app: dstwater 
+    spec:
+      containers:
+        - name: dstwater 
+          image: containerregistry4pd7i.azurecr.io/dstwater
+          ports:
+          - containerPort: 80
