@@ -858,6 +858,10 @@ const Output = () => {
       console.log(e);
       evtSource.close();
     };
+
+    dispatch(set.button('Progress'));
+    globalButton = 'Progress';
+    dispatch(set.worksheet(files.Progress));
   };
 
   if (!Object.keys(files).length) {
