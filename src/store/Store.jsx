@@ -19,6 +19,7 @@ const initialState = {
   feedback: '',
   screen: '',
   field: '',
+  file: '',
   lat: 40.7849,
   lon: -74.8073,
   mapAddress: '',
