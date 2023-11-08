@@ -2,7 +2,7 @@
 /* eslint-disable jsx-a11y/no-noninteractive-tabindex */
 
 import React, {
-  useEffect, useCallback, useState,
+  useEffect, useCallback, useState, useRef,
 } from 'react';
 
 import { SSE } from 'sse.js'; // SSE with POST
@@ -10,15 +10,21 @@ import { useSelector, useDispatch } from 'react-redux';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import Dropzone from 'react-dropzone';
+import Highcharts from 'highcharts';
+import HighchartsReact from 'highcharts-react-official';
 
 import { get, set } from '../../store/Store';
 import './styles.scss';
 
 import { comp } from './comp';
 
+const url = 'https://api.precisionsustainableag.org';
+// const url = 'http://localhost';
+
 let globalButton;
 let globalFiles = {
   Progress: '',
+  g01: '',
 };
 
 const comps = {};
@@ -69,10 +75,17 @@ comp.split('___________').forEach((s) => {
 const WorksheetData = () => {
   const data = useSelector(get.worksheet);
   const site = useSelector(get.site);
+  const preref = useRef(null);
+
+  useEffect(() => {
+    if (preref.current) {
+      preref.current.scrollTop = preref.current.scrollHeight;
+    }
+  }, [data]);
 
   if (typeof data === 'string') {
     return (
-      <pre className="data" tabIndex={0}>
+      <pre className="data" tabIndex={0} ref={preref}>
         {data}
       </pre>
     );
@@ -127,10 +140,12 @@ const SoilFiles = () => {
 
   const files = {
     Progress: '',
+    g01: '',
   };
 
   globalFiles = {
     Progress: '',
+    g01: '',
   };
 
   useEffect(() => {
@@ -139,6 +154,51 @@ const SoilFiles = () => {
 
   return <Output />;
 }; // SoilFiles
+
+const Graph = ({ filename, col }) => {
+  const file = (useSelector(get.soilfiles)[filename] || '').split(/[\n\r]+/).map((g) => g.split(',').map((s) => s.trim()));
+  if (file.length < 2) return null;
+
+  const n = file[0].indexOf(col);
+  const options = {
+    chart: {
+      type: 'line',
+      height: 180,
+      animation: false,
+    },
+    title: {
+      text: col,
+    },
+    xAxis: {
+      // min: 0,
+      max: 3000,
+      title: false,
+    },
+    yAxis: {
+      title: false,
+    },
+    plotOptions: {
+      series: {
+        lineWidth: 1,
+      },
+    },
+    series: [{
+      data: file.slice(2).map((g) => +g[n]),
+    }],
+    legend: {
+      enabled: false,
+    },
+  };
+
+  return (
+    <div className="chart">
+      <HighchartsReact
+        highcharts={Highcharts}
+        options={options}
+      />
+    </div>
+  );
+}; // Graph
 
 let progress = '';
 const Output = () => {
@@ -159,7 +219,17 @@ const Output = () => {
     if (globalButton === 'Progress') {
       dispatch(set.worksheet(progress2));
     }
-    console.log(e.data);
+  };
+
+  const g01 = (e) => {
+    const progress2 = `${globalFiles.g01 + e.data.replace(/zzz/g, '\n')}\n`;
+
+    globalFiles = {
+      ...globalFiles,
+      g01: progress2,
+    };
+
+    dispatch(set.soilfiles(globalFiles));
   };
 
   const file = (e) => {
@@ -180,12 +250,14 @@ const Output = () => {
     console.clear();
     progress = '';
 
-    const evtSource = new SSE('https://api.precisionsustainableag.org/maizsim');
+    const evtSource = new SSE(`${url}/maizsim`);
     evtSource.stream();
 
     evtSource.addEventListener('file', file);
 
     evtSource.addEventListener('message', message);
+
+    evtSource.addEventListener('g01', g01);
 
     evtSource.onclose = (e) => {
       console.log('closed');
@@ -302,14 +374,18 @@ const Worksheet = () => {
       const formData = new FormData();
       formData.append('file', file);
       try {
-        const response = await fetch(`https://api.precisionsustainableag.org/getsoilfiles?id=${site}`, {
+        console.log(`${url}/getsoilfiles?id=${site}`);
+        const response = await fetch(`${url}/getsoilfiles?id=${site}`, {
           method: 'POST',
           body: formData,
         });
 
         if (response.ok) {
           const responseData = await response.json();
-          globalFiles = responseData;
+          globalFiles = {
+            g01: '',
+            ...responseData,
+          };
           dispatch(set.soilfiles(globalFiles));
           console.log(Object.keys(responseData));
         } else {
@@ -371,7 +447,13 @@ const Worksheet = () => {
       onDrop={() => setDragging(false)}
     >
       <p>Drag or paste an Excel file here, then select the site from the upper-right dropdown.</p>
-
+      <div id="Charts">
+        <Graph filename="g01" col="SolRad" />
+        <Graph filename="g01" col="SoilT" />
+        <Graph filename="g01" col="TotLeafDM" />
+        <Graph filename="g01" col="ETdmd" />
+        <Graph filename="g01" col="shaded_LAI" />
+      </div>
       {
         dragging && (
           <Dropzone onDrop={handleDrop}>
