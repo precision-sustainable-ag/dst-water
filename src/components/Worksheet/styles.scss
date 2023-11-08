@@ -71,6 +71,7 @@
     margin: 0;
     font: 13px consolas, monospace;
     background: lightyellow;
+    height: 100%;
   }
 
   section summary {
@@ -93,5 +94,21 @@
   
   .missing summary {
     background: red !important;
+  }
+
+  #Charts {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 300px;
+    z-index: 1;
+
+    .chart {
+      width: 100%;
+      height: 20vh;
+      border: 1px solid black;
+      padding: 0.5rem;
+      background: white;
+    }
   }
 }
