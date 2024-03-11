@@ -1,3 +1,4 @@
+import { all } from 'axios';
 import xlsx from 'xlsx';
 
 const baseLocation = '../../../public/CROWN_Geospatial/';
@@ -231,7 +232,7 @@ export const geospatialProcessing = (fileDir, init, ccTerminationDate) => {
       allPlantDataG01.sort((a, b) => a.Date - b.Date);
       allPlantDataG01 = allPlantDataG01.map((record) => ({
         ID: record.ID,
-        crop_Stage: record.crop_stage,
+        crop_stage: record.crop_stage,
         Date: record.Date,
         LAI: record.LAI,
         totalDM: record.totalDM,
@@ -290,7 +291,160 @@ export const geospatialProcessing = (fileDir, init, ccTerminationDate) => {
         ...record,
         MsBl_End: index === (allMassBlData.length - 1) ? 'MsBl_End' : 'NA',
       }));
-      console.log('data: ', allMassBlData);
+
+      // processing for allOut
+      let allOut = allPlantDataG01.map((record) => ({ ...record }));
+      const allOutIds = allOut.map((record) => record.ID);
+      const sampleModelInputData = modelInputData.map((record) => ({
+        ID: record.ID,
+        crop_stage: record.management,
+        Date: record.date_residue,
+      })).filter((record) => allOutIds.includes(record.ID));
+      allOut.forEach((recordAllOut) => {
+        sampleModelInputData.forEach((recordSample) => {
+          if (
+            recordSample.ID === recordAllOut.ID
+            && recordSample.crop_stage === recordAllOut.crop_stage
+            && recordSample.Date.getTime() === recordAllOut.Date.getTime()
+          ) {
+            recordSample.existing = true;
+          }
+        });
+      });
+      sampleModelInputData.forEach((record) => {
+        if (!record.existing) {
+          const newObj = {};
+          Object.keys(allOut[0]).forEach((k) => {
+            newObj[k] = record[k] || null;
+          });
+          allOut.push(newObj);
+        }
+      });
+      allOut.sort((a, b) => a.Date - b.Date);
+      const allOutAtmosKeys = Array.from(new Set(
+        Object.keys(allOut[0]).concat(
+          Object.keys(allAtmosDataG05[0]),
+        ),
+      ));
+      const allOutJoin1 = [];
+      allOut.forEach((recordOut) => {
+        let match = false;
+        allAtmosDataG05.forEach((recordAtmos) => {
+          if (
+            recordOut.ID === recordAtmos.ID
+            && recordOut.Date.getTime() === recordAtmos.Date.getTime()
+          ) {
+            match = true;
+            const newObj = {};
+            allOutAtmosKeys.forEach((key) => {
+              newObj[key] = recordOut[key] || recordAtmos[key] || null;
+            });
+            allOutJoin1.push(newObj);
+          }
+        });
+        if (!match) {
+          const newObj = {};
+          allOutAtmosKeys.forEach((key) => {
+            newObj[key] = recordOut[key] || null;
+          });
+          allOutJoin1.push(newObj);
+        }
+      });
+      const allOutJoin1MassBlKeys = Array.from(new Set(
+        Object.keys(allOutJoin1[0]).concat(
+          Object.keys(allMassBlData[0]),
+        ),
+      ));
+      const allOutJoin2 = [];
+      allOutJoin1.forEach((recordOut) => {
+        let match = false;
+        allMassBlData.forEach((recordMass) => {
+          if (
+            recordOut.ID === recordMass.ID
+            && recordOut.Date.getTime() === recordMass.Date.getTime()
+          ) {
+            match = true;
+            const newObj = {};
+            allOutJoin1MassBlKeys.forEach((key) => {
+              newObj[key] = recordOut[key] || recordMass[key] || null;
+            });
+            allOutJoin2.push(newObj);
+          }
+        });
+        if (!match) {
+          const newObj = {};
+          allOutJoin1MassBlKeys.forEach((key) => {
+            newObj[key] = recordOut[key] || null;
+          });
+          allOutJoin2.push(newObj);
+        }
+      });
+      const endAtmosG05 = allAtmosDataG05.filter((record) => record.G05_End === 'G05_End');
+      allOutJoin2.forEach((recordAllOut) => {
+        endAtmosG05.forEach((recordEndAtmos) => {
+          if (
+            recordEndAtmos.ID === recordAllOut.ID
+            && recordEndAtmos.Date.getTime() === recordAllOut.Date.getTime()
+            && recordEndAtmos.SeasPSoEv === recordAllOut.SeasPSoEv
+            && recordEndAtmos.SeasASoEv === recordAllOut.SeasASoEv
+            && recordEndAtmos.SeasPTran === recordAllOut.SeasPTran
+            && recordEndAtmos.SeasATran === recordAllOut.SeasATran
+            && recordEndAtmos.SeasRain === recordAllOut.SeasRain
+            && recordEndAtmos.SeasInfil === recordAllOut.SeasInfil
+            && recordEndAtmos.G05_End === recordAllOut.G05_End
+          ) {
+            recordEndAtmos.existing = true;
+          }
+        });
+      });
+      endAtmosG05.forEach((record) => {
+        if (!record.existing) {
+          const newObj = {};
+          Object.keys(allOut[0]).forEach((k) => {
+            newObj[k] = record[k] || null;
+          });
+          allOutJoin2.push(newObj);
+        }
+      });
+      allOut = allOutJoin2.map((record) => ({
+        ...record,
+        crop_stage: !record.crop_stage || ['NA', ''].includes(record.crop_stage) ? record.G05_End : record.crop_stage,
+      }));
+      const fillColumns = ['SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil'];
+      const fillUpDown = (arr, col, index) => {
+        let upIndex = index - 1;
+        let downIndex = index + 1;
+        while (upIndex >= 0 || downIndex < arr.length) {
+          if (downIndex >= arr.length) {
+            if (arr[upIndex][col]) {
+              return arr[upIndex][col];
+            }
+            upIndex -= 1;
+          } else if (upIndex < 0) {
+            if (arr[downIndex][col]) {
+              return arr[downIndex][col];
+            }
+            downIndex += 1;
+          } else {
+            if (arr[upIndex][col]) {
+              return arr[upIndex][col];
+            } if (arr[downIndex][col]) {
+              return arr[downIndex][col];
+            }
+            upIndex -= 1;
+            downIndex += 1;
+          }
+        }
+        return arr[index][col];
+      };
+      allOut.forEach((record, recordIndex) => {
+        fillColumns.forEach((col) => {
+          if (!record[col]) {
+            record[col] = fillUpDown(allOut, col, recordIndex);
+          }
+        });
+      });
+      console.log('join: ', allOut);
     }
   });
 };
