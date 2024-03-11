@@ -16,7 +16,7 @@ const ResidueAnalysis = () => {
       const init = data.Init;
       const ccTerminationDate = data.Fertilization;
       const fileDir = getModelPaths('MD', 'Frederick_test');
-      geospatialProcessing(fileDir, init, ccTerminationDate);
+      await geospatialProcessing(fileDir, init, ccTerminationDate);
     };
     fetchData();
   }, [state, county]);
