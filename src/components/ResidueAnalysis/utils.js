@@ -410,7 +410,7 @@ export const geospatialProcessing = (fileDir, init, ccTerminationDate) => {
         ...record,
         crop_stage: !record.crop_stage || ['NA', ''].includes(record.crop_stage) ? record.G05_End : record.crop_stage,
       }));
-      const fillColumns = ['SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil'];
+      const fillColumnsAtmos = ['SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil'];
       const fillUpDown = (arr, col, index) => {
         let upIndex = index - 1;
         let downIndex = index + 1;
@@ -438,7 +438,50 @@ export const geospatialProcessing = (fileDir, init, ccTerminationDate) => {
         return arr[index][col];
       };
       allOut.forEach((record, recordIndex) => {
-        fillColumns.forEach((col) => {
+        fillColumnsAtmos.forEach((col) => {
+          if (!record[col]) {
+            record[col] = fillUpDown(allOut, col, recordIndex);
+          }
+        });
+      });
+
+      const endMassBl = allMassBlData.filter((record) => record.MsBl_End === 'MsBl_End');
+      allOut.forEach((recordAllOut) => {
+        if (recordAllOut.Mul_N === null) {
+          recordAllOut.Mul_N = 0;
+        }
+        endMassBl.forEach((recordEndMass) => {
+          if (
+            recordEndMass.ID === recordAllOut.ID
+            && recordEndMass.Date.getTime() === recordAllOut.Date.getTime()
+            && recordEndMass.Inorg_N === recordAllOut.Inorg_N
+            && recordEndMass.Litr_N === recordAllOut.Litr_N
+            && recordEndMass.Mul_N === recordAllOut.Mul_N
+            && recordEndMass.NO3_lch === recordAllOut.NO3_lch
+            && recordEndMass.Mul_Mass === recordAllOut.Mul_Mass
+            && recordEndMass.Mul_CNR === recordAllOut.Mul_CNR
+            && recordEndMass.MsBl_End === recordAllOut.MsBl_End
+          ) {
+            recordEndMass.existing = true;
+          }
+        });
+      });
+      endMassBl.forEach((record) => {
+        if (!record.existing) {
+          const newObj = {};
+          Object.keys(allOut[0]).forEach((k) => {
+            newObj[k] = record[k] || null;
+          });
+          allOut.push(newObj);
+        }
+      });
+      allOut = allOut.map((record) => ({
+        ...record,
+        crop_stage: !record.crop_stage || ['NA', ''].includes(record.crop_stage) ? record.MsBl_End : record.crop_stage,
+      }));
+      const fillColumnsMassBl = ['Inorg_N', 'Litr_N', 'Mul_N', 'NO3_lch', 'Mul_Mass', 'Mul_CNR'];
+      allOut.forEach((record, recordIndex) => {
+        fillColumnsMassBl.forEach((col) => {
           if (!record[col]) {
             record[col] = fillUpDown(allOut, col, recordIndex);
           }
