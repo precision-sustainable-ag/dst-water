@@ -20,6 +20,7 @@ import Location from './shared/Location';
 import Soil from './components/Soil';
 import Inputs from './components/Inputs';
 import Worksheet from './components/Worksheet';
+import ResidueAnalysis from './components/ResidueAnalysis';
 
 const screens = {
   init: Init,
@@ -29,6 +30,7 @@ const screens = {
   soil: Soil,
   inputs: Inputs,
   worksheet: Worksheet,
+  residue: ResidueAnalysis,
 };
 
 screens.init.showInMenu = false;
@@ -177,6 +179,7 @@ const App = () => {
           path=""
           element={<Screen />}
         />
+
       </Routes>
     </div>
   );

@@ -25,3 +25,6 @@ yarn-error.log*
 .vscode/*
 .env
 pnpm-lock.yaml
+
+# data files for development
+CROWN_Geospatial
