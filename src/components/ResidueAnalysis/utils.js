@@ -146,7 +146,7 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
     });
   });
 
-  // going through each input folder
+  // model out processing by going through each input folder
   let modelOut = [];
   await Promise.all(
     fileDir.map(async (inputFile) => {
@@ -502,7 +502,6 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
       return 0;
     }),
   );
-
   const cropStageValues = [
     'cc_termination', 'Sowing', 'Germinated', 'Emerged', 'Tasselinit', 'Tasseled', 'Silked', 'Matured', 'Sim_ended', 'G05_End', 'MsBl_End',
   ];
@@ -518,5 +517,55 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
     modelOut.push(newObject);
   });
 
-  console.log('crop stage: ', modelOut);
+  // processing for cornOut
+  const filteredModelOutForCorn = modelOut.filter((record) => ['Matured', 'Sim_ended'].includes(record.crop_stage));
+  let cornOut = [];
+  const cornOutColumns = Array.from(new Set([...Object.keys(modelInputData[0]), ...Object.keys(filteredModelOutForCorn[0])]));
+  filteredModelOutForCorn.forEach((recordModelOutCorn) => {
+    let match = false;
+    modelInputData.forEach((recordInput) => {
+      if (recordModelOutCorn.ID === recordInput.ID) {
+        match = true;
+        const newObj = {};
+        cornOutColumns.forEach((col) => {
+          newObj[col] = recordModelOutCorn[col] || recordInput[col] || null;
+        });
+        cornOut.push(newObj);
+      }
+    });
+    if (!match) {
+      const newObj = {};
+      cornOutColumns.forEach((col) => {
+        newObj[col] = recordModelOutCorn[col] || null;
+      });
+      cornOut.push(newObj);
+    }
+  });
+  cornOut = cornOut.map((record) => ({
+    ID: record.ID,
+    lat: record.lat,
+    long: record.long,
+    max_LAI: record.max_LAI,
+    LAI: record.LAI,
+    totalDM: Number((((Number(record.totalDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    shootDM: Number((((Number(record.shootDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    earDM: Number((((Number(record.earDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    TotLfDm: Number((((Number(record.TotLeafDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    DrpLfDm: Number((((Number(record.DrpLfDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    stemDM: Number((((Number(record.stemDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    rootDM: Number((((Number(record.rootDM) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    N_upt: Number((((Number(record.N_upt) || 0) * Number(record.population)) / 1000).toFixed(2)),
+    cum_ETsp: Number((((Number(record.cum_ETsply) || 0) * Number(record.population) * 1000) / (10000 * 1000 * 1000)).toFixed(2)),
+    cum_Nlch: Number((Number(record.NO3_lch)).toFixed(2)),
+    GDDSum: record.GDDSum,
+  }));
+  cornOut.forEach((record) => {
+    record.yield = Number((((Number(record.earDM) || 0) * 86) / 100).toFixed(2));
+  });
+  cornOut = cornOut.filter((record) => Object.values(record).some((val) => val !== null && val !== undefined && val !== 0));
+
+  console.log(
+    'corn out: ',
+    cornOut,
+  );
 };
