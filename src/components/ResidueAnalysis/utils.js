@@ -688,8 +688,161 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
   }));
   waterOut = waterOut.filter((record) => hasNonNullValues(record));
 
+  // processing for stress out
+  let stressOut = leftJoin(modelOut, modelInputData, ['ID'], ['ID']);
+  stressOut = stressOut.map((record) => ({
+    N_dmd: Number(((Number(record.N_dmd) * Number(record.population)) / 1000).toFixed(2)),
+    N_upt: Number(((Number(record.N_upt) * Number(record.population)) / 1000).toFixed(2)),
+    cum_ETdmd: Number(Number(record.cum_ETdmd).toFixed(2)),
+    cum_ETsply: Number(Number(record.cum_ETsply).toFixed(2)),
+    ID: record.ID,
+    crop_stage: record.crop_stage,
+  }));
+  stressOut = pivotWider(stressOut, 'crop_stage', 'ID');
+  stressOut = stressOut.map((record) => ({
+    WSI_EVg: Number(
+      (
+        ((Number(record.cum_ETsply_Tasselinit) || 0) - (Number(record.cum_ETsply_Sowing) || 0))
+        / ((Number(record.cum_ETdmd_Tasselinit) || 0) - (Number(record.cum_ETdmd_Sowing) || 0))
+      ).toFixed(3),
+    ),
+    WSI_LVg: Number(
+      (
+        ((Number(record.cum_ETsply_Silked) || 0) - (Number(record.cum_ETsply_Tasselinit) || 0))
+        / ((Number(record.cum_ETdmd_Silked) || 0) - (Number(record.cum_ETdmd_Tasselinit) || 0))
+      ).toFixed(3),
+    ),
+    WSI_Slk: Number(
+      (
+        ((Number(record.cum_ETsply_grainFill) || 0) - (Number(record.cum_ETsply_Silked) || 0))
+        / ((Number(record.cum_ETdmd_grainFill) || 0) - (Number(record.cum_ETdmd_Silked) || 0))
+      ).toFixed(3),
+    ),
+    WSI_Gf: Number(
+      (
+        (
+          (record.cum_ETsply_Matured
+            ? (Number(record.cum_ETsply_Sim_ended) || 0)
+            : (Number(record.cum_ETsply_Matured) || 0))
+          - (Number(record.cum_ETsply_grainFill) || 0)
+        ) / (
+          (record.cum_ETdmd_Matured
+            ? (Number(record.cum_ETdmd_Sim_ended) || 0)
+            : (Number(record.cum_ETdmd_Matured) || 0))
+          - (Number(record.cum_ETdmd_grainFill) || 0)
+        )
+      ).toFixed(3),
+    ),
+    WSI_Veg: Number(
+      (
+        ((Number(record.cum_ETsply_Silked) || 0) - (Number(record.cum_ETsply_Sowing) || 0))
+        / ((Number(record.cum_ETdmd_Silked) || 0) - (Number(record.cum_ETdmd_Sowing) || 0))
+      ).toFixed(3),
+    ),
+    WSI_Rep: Number(
+      (
+        (
+          (record.cum_ETsply_Matured
+            ? (Number(record.cum_ETsply_Sim_ended) || 0)
+            : (Number(record.cum_ETsply_Matured) || 0))
+          - (Number(record.cum_ETsply_Silked) || 0)
+        ) / (
+          (record.cum_ETdmd_Matured
+            ? (Number(record.cum_ETdmd_Sim_ended) || 0)
+            : (Number(record.cum_ETdmd_Matured) || 0))
+          - (Number(record.cum_ETdmd_Silked) || 0)
+        )
+      ).toFixed(3),
+    ),
+    WSI_cum: Number(
+      (
+        (
+          (record.cum_ETsply_Matured
+            ? (Number(record.cum_ETsply_Sim_ended) || 0)
+            : (Number(record.cum_ETsply_Matured) || 0))
+          - (Number(record.cum_ETsply_Sowing) || 0)
+        ) / (
+          (record.cum_ETdmd_Matured
+            ? (Number(record.cum_ETdmd_Sim_ended) || 0)
+            : (Number(record.cum_ETdmd_Matured) || 0))
+          - (Number(record.cum_ETdmd_Sowing) || 0)
+        )
+      ).toFixed(3),
+    ),
+    NSI_EVg: Number(
+      (
+        ((Number(record.N_upt_Tasselinit) || 0) - (Number(record.N_upt_Sowing) || 0))
+        / ((Number(record.N_dmd_Tasselinit) || 0) - (Number(record.N_dmd_Sowing) || 0))
+      ).toFixed(3),
+    ),
+    NSI_LVg: Number(
+      (
+        ((Number(record.N_upt_Silked) || 0) - (Number(record.N_upt_Tasselinit) || 0))
+        / ((Number(record.N_dmd_Silked) || 0) - (Number(record.N_dmd_Tasselinit) || 0))
+      ).toFixed(3),
+    ),
+    NSI_Slk: Number(
+      (
+        ((Number(record.N_upt_grainFill) || 0) - (Number(record.N_upt_Silked) || 0))
+        / ((Number(record.N_dmd_grainFill) || 0) - (Number(record.N_dmd_Silked) || 0))
+      ).toFixed(3),
+    ),
+    NSI_Gf: Number(
+      (
+        (
+          (record.N_upt_Matured
+            ? (Number(record.N_upt_Sim_ended) || 0)
+            : (Number(record.N_upt_Matured) || 0))
+          - (Number(record.N_upt_grainFill) || 0)
+        ) / (
+          (record.N_dmd_Matured
+            ? (Number(record.N_dmd_Sim_ended) || 0)
+            : (Number(record.N_dmd_Matured) || 0))
+          - (Number(record.N_dmd_grainFill) || 0)
+        )
+      ).toFixed(3),
+    ),
+    NSI_Veg: Number(
+      (
+        ((Number(record.N_upt_Silked) || 0) - (Number(record.N_upt_Sowing) || 0))
+        / ((Number(record.N_dmd_Silked) || 0) - (Number(record.N_dmd_Sowing) || 0))
+      ).toFixed(3),
+    ),
+    NSI_Rep: Number(
+      (
+        (
+          (record.N_upt_Matured
+            ? (Number(record.N_upt_Sim_ended) || 0)
+            : (Number(record.N_upt_Matured) || 0))
+          - (Number(record.N_upt_Silked) || 0)
+        ) / (
+          (record.N_dmd_Matured
+            ? (Number(record.N_dmd_Sim_ended) || 0)
+            : (Number(record.N_dmd_Matured) || 0))
+          - (Number(record.N_dmd_Silked) || 0)
+        )
+      ).toFixed(3),
+    ),
+    NSI_cum: Number(
+      (
+        (
+          (record.N_upt_Matured
+            ? (Number(record.N_upt_Sim_ended) || 0)
+            : (Number(record.N_upt_Matured) || 0))
+          - (Number(record.N_upt_Sowing) || 0)
+        ) / (
+          (record.N_dmd_Matured
+            ? (Number(record.N_dmd_Sim_ended) || 0)
+            : (Number(record.N_dmd_Matured) || 0))
+          - (Number(record.N_dmd_Sowing) || 0)
+        )
+      ).toFixed(3),
+    ),
+    ID: record.ID,
+  }));
+
   console.log(
-    'water out: ',
-    newWaterOut,
+    'stress out: ',
+    stressOut,
   );
 };
