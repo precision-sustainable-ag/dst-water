@@ -103,6 +103,143 @@ export const loadTemplateFiles = async (state, county) => {
 export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => {
   const checkDuplicateJson = (arrObj, valueToCheck) => arrObj.some((obj) => JSON.stringify(obj) === JSON.stringify(valueToCheck));
 
+  const checkJoinCondition = (record1, record2, byColumns1, byColumns2) => {
+    for (let it = 0; it < byColumns1.length; it++) {
+      if (!(
+        (
+          [byColumns1[it], byColumns2[it]].includes('Date')
+              && record1[byColumns1[it]].getTime() === record2[byColumns2[it]].getTime()
+        ) || (
+          record1[byColumns1[it]] === record2[byColumns2[it]]
+        )
+      )) {
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const leftJoin = (table1, table2, byColumns1, byColumns2) => {
+    const newData = [];
+    const columns = Array.from(new Set([...Object.keys(table1[0]), ...Object.keys(table2[0])]));
+    table1.forEach((t1) => {
+      let match = false;
+      table2.forEach((t2) => {
+        if (checkJoinCondition(t1, t2, byColumns1, byColumns2)) {
+          match = true;
+          const newObj = {};
+          columns.forEach((col) => {
+            newObj[col] = t1[col] || t2[col] || null;
+          });
+          newData.push(newObj);
+        }
+      });
+      if (!match) {
+        const newObj = {};
+        columns.forEach((col) => {
+          newObj[col] = t1[col] || null;
+        });
+        newData.push(newObj);
+      }
+    });
+    return newData;
+  };
+
+  const hasNonNullValues = (record) => Object.values(record).some((val) => val !== null && val !== undefined && val !== 0);
+
+  const groupBy = (data, column) => {
+    const newData = data.reduce((acc, record) => {
+      const key = record[column];
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(record);
+      return acc;
+    }, []);
+    return newData;
+  };
+
+  const fullJoin = (table1, table2, byColumns1, byColumns2) => {
+    table1 = [...table1];
+    table2 = [...table2];
+    table1.forEach((recordT1) => {
+      table2.forEach((recordT2) => {
+        if (checkJoinCondition(recordT1, recordT2, byColumns1, byColumns2)) {
+          recordT2.existing = true;
+        }
+      });
+    });
+    table2.forEach((record) => {
+      if (!record.existing) {
+        const newObj = {};
+        Object.keys(table1[0]).forEach((k) => {
+          newObj[k] = record[k] || null;
+        });
+        table1.push(newObj);
+      }
+    });
+    return table1;
+  };
+
+  const fillUpDown = (arr, col, index) => {
+    let upIndex = index - 1;
+    let downIndex = index + 1;
+    while (upIndex >= 0 || downIndex < arr.length) {
+      if (downIndex >= arr.length) {
+        if (arr[upIndex][col]) {
+          return arr[upIndex][col];
+        }
+        upIndex -= 1;
+      } else if (upIndex < 0) {
+        if (arr[downIndex][col]) {
+          return arr[downIndex][col];
+        }
+        downIndex += 1;
+      } else {
+        if (arr[upIndex][col]) {
+          return arr[upIndex][col];
+        } if (arr[downIndex][col]) {
+          return arr[downIndex][col];
+        }
+        upIndex -= 1;
+        downIndex += 1;
+      }
+    }
+    return arr[index][col];
+  };
+
+  const pivotWider = (data, nameColumn, staticColumn) => {
+    const staticID = Array.from(new Set(data.map((record) => record[staticColumn])));
+    const newKeys = [];
+    const nameColumnValues = Array.from(new Set(data.map((record) => record[nameColumn])));
+    Object.keys(data[0]).forEach((key) => {
+      if (![nameColumn, staticColumn].includes(key)) {
+        nameColumnValues.forEach((value) => {
+          newKeys.push(`${key}_${value}`);
+        });
+      }
+    });
+    const output = [];
+    staticID.forEach((newID) => {
+      nameColumnValues.forEach((column) => {
+        const newObj = { [staticColumn]: newID };
+        newKeys.forEach((newKey) => {
+          if (newKey.includes(column)) {
+            const oldKey = newKey.replace(`_${column}`, '');
+            const filteredValue = data.filter(
+              (record) => record[staticColumn] === newID && record[nameColumn] === column,
+            );
+            newObj[newKey] = filteredValue.length > 0 ? filteredValue[0][oldKey] || null : null;
+          } else {
+            newObj[newKey] = null;
+          }
+        });
+        output.push(newObj);
+      });
+    });
+    return output;
+  };
+
   init = init.map((record) => ({
     ID: record.ID,
     lat: record.lat,
@@ -213,14 +350,7 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
           GDDSum: GDDsum,
         };
       });
-      allPlantDataG01 = allPlantDataG01.reduce((acc, record) => {
-        const key = record.crop_stage;
-        if (!acc[key]) {
-          acc[key] = [];
-        }
-        acc[key].push(record);
-        return acc;
-      }, []);
+      allPlantDataG01 = groupBy(allPlantDataG01, 'crop_stage');
       allPlantDataG01 = Object.values(allPlantDataG01).map((group) => group[0]);
       allPlantDataG01.map((record) => {
         if (record.crop_stage === 'none') {
@@ -300,143 +430,22 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
           crop_stage: record.management,
           Date: record.date_residue,
         })).filter((record) => allOutIds.includes(record.ID));
-        allOut.forEach((recordAllOut) => {
-          sampleModelInputData.forEach((recordSample) => {
-            if (
-              recordSample.ID === recordAllOut.ID
-              && recordSample.crop_stage === recordAllOut.crop_stage
-              && recordSample.Date.getTime() === recordAllOut.Date.getTime()
-            ) {
-              recordSample.existing = true;
-            }
-          });
-        });
-        sampleModelInputData.forEach((record) => {
-          if (!record.existing) {
-            const newObj = {};
-            Object.keys(allOut[0]).forEach((k) => {
-              newObj[k] = record[k] || null;
-            });
-            allOut.push(newObj);
-          }
-        });
+        allOut = fullJoin(allOut, sampleModelInputData, ['ID', 'crop_stage', 'Date'], ['ID', 'crop_stage', 'Date']);
         allOut.sort((a, b) => a.Date - b.Date);
-        const allOutAtmosKeys = Array.from(new Set(
-          Object.keys(allOut[0]).concat(
-            Object.keys(allAtmosDataG05[0]),
-          ),
-        ));
-        const allOutJoin1 = [];
-        allOut.forEach((recordOut) => {
-          let match = false;
-          allAtmosDataG05.forEach((recordAtmos) => {
-            if (
-              recordOut.ID === recordAtmos.ID
-              && recordOut.Date.getTime() === recordAtmos.Date.getTime()
-            ) {
-              match = true;
-              const newObj = {};
-              allOutAtmosKeys.forEach((key) => {
-                newObj[key] = recordOut[key] || recordAtmos[key] || null;
-              });
-              allOutJoin1.push(newObj);
-            }
-          });
-          if (!match) {
-            const newObj = {};
-            allOutAtmosKeys.forEach((key) => {
-              newObj[key] = recordOut[key] || null;
-            });
-            allOutJoin1.push(newObj);
-          }
-        });
-        const allOutJoin1MassBlKeys = Array.from(new Set(
-          Object.keys(allOutJoin1[0]).concat(
-            Object.keys(allMassBlData[0]),
-          ),
-        ));
-        const allOutJoin2 = [];
-        allOutJoin1.forEach((recordOut) => {
-          let match = false;
-          allMassBlData.forEach((recordMass) => {
-            if (
-              recordOut.ID === recordMass.ID
-              && recordOut.Date.getTime() === recordMass.Date.getTime()
-            ) {
-              match = true;
-              const newObj = {};
-              allOutJoin1MassBlKeys.forEach((key) => {
-                newObj[key] = recordOut[key] || recordMass[key] || null;
-              });
-              allOutJoin2.push(newObj);
-            }
-          });
-          if (!match) {
-            const newObj = {};
-            allOutJoin1MassBlKeys.forEach((key) => {
-              newObj[key] = recordOut[key] || null;
-            });
-            allOutJoin2.push(newObj);
-          }
-        });
+        const allOutJoin1 = leftJoin(allOut, allAtmosDataG05, ['ID', 'Date'], ['ID', 'Date']);
+        let allOutJoin2 = leftJoin(allOutJoin1, allMassBlData, ['ID', 'Date'], ['ID', 'Date']);
         const endAtmosG05 = allAtmosDataG05.filter((record) => record.G05_End === 'G05_End');
-        allOutJoin2.forEach((recordAllOut) => {
-          endAtmosG05.forEach((recordEndAtmos) => {
-            if (
-              recordEndAtmos.ID === recordAllOut.ID
-              && recordEndAtmos.Date.getTime() === recordAllOut.Date.getTime()
-              && recordEndAtmos.SeasPSoEv === recordAllOut.SeasPSoEv
-              && recordEndAtmos.SeasASoEv === recordAllOut.SeasASoEv
-              && recordEndAtmos.SeasPTran === recordAllOut.SeasPTran
-              && recordEndAtmos.SeasATran === recordAllOut.SeasATran
-              && recordEndAtmos.SeasRain === recordAllOut.SeasRain
-              && recordEndAtmos.SeasInfil === recordAllOut.SeasInfil
-              && recordEndAtmos.G05_End === recordAllOut.G05_End
-            ) {
-              recordEndAtmos.existing = true;
-            }
-          });
-        });
-        endAtmosG05.forEach((record) => {
-          if (!record.existing) {
-            const newObj = {};
-            Object.keys(allOut[0]).forEach((k) => {
-              newObj[k] = record[k] || null;
-            });
-            allOutJoin2.push(newObj);
-          }
-        });
+        allOutJoin2 = fullJoin(
+          allOutJoin2,
+          endAtmosG05,
+          ['ID', 'Date', 'SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil', 'GO5_End'],
+          ['ID', 'Date', 'SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil', 'GO5_End'],
+        );
         allOut = allOutJoin2.map((record) => ({
           ...record,
           crop_stage: !record.crop_stage || ['NA', ''].includes(record.crop_stage) ? record.G05_End : record.crop_stage,
         }));
         const fillColumnsAtmos = ['SeasPSoEv', 'SeasASoEv', 'SeasPTran', 'SeasATran', 'SeasRain', 'SeasInfil'];
-        const fillUpDown = (arr, col, index) => {
-          let upIndex = index - 1;
-          let downIndex = index + 1;
-          while (upIndex >= 0 || downIndex < arr.length) {
-            if (downIndex >= arr.length) {
-              if (arr[upIndex][col]) {
-                return arr[upIndex][col];
-              }
-              upIndex -= 1;
-            } else if (upIndex < 0) {
-              if (arr[downIndex][col]) {
-                return arr[downIndex][col];
-              }
-              downIndex += 1;
-            } else {
-              if (arr[upIndex][col]) {
-                return arr[upIndex][col];
-              } if (arr[downIndex][col]) {
-                return arr[downIndex][col];
-              }
-              upIndex -= 1;
-              downIndex += 1;
-            }
-          }
-          return arr[index][col];
-        };
         allOut.forEach((record, recordIndex) => {
           fillColumnsAtmos.forEach((col) => {
             if (!record[col]) {
@@ -452,31 +461,13 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
           if (recordAllOut.Litr_N === null) {
             recordAllOut.Litr_N = 0;
           }
-          endMassBl.forEach((recordEndMass) => {
-            if (
-              recordEndMass.ID === recordAllOut.ID
-              && recordEndMass.Date.getTime() === recordAllOut.Date.getTime()
-              && recordEndMass.Inorg_N === recordAllOut.Inorg_N
-              && recordEndMass.Litr_N === recordAllOut.Litr_N
-              && recordEndMass.Mul_N === recordAllOut.Mul_N
-              && recordEndMass.NO3_lch === recordAllOut.NO3_lch
-              && recordEndMass.Mul_Mass === recordAllOut.Mul_Mass
-              && recordEndMass.Mul_CNR === recordAllOut.Mul_CNR
-              && recordEndMass.MsBl_End === recordAllOut.MsBl_End
-            ) {
-              recordEndMass.existing = true;
-            }
-          });
         });
-        endMassBl.forEach((record) => {
-          if (!record.existing) {
-            const newObj = {};
-            Object.keys(allOut[0]).forEach((k) => {
-              newObj[k] = record[k] || null;
-            });
-            allOut.push(newObj);
-          }
-        });
+        allOut = fullJoin(
+          allOut,
+          endMassBl,
+          ['ID', 'Date', 'Inorg_N', 'Litr_N', 'Mul_N', 'NO3_lch', 'Mul_Mass', 'Mul_CNR', 'MsBl_End'],
+          ['ID', 'Date', 'Inorg_N', 'Litr_N', 'Mul_N', 'NO3_lch', 'Mul_Mass', 'Mul_CNR', 'MsBl_End'],
+        );
         allOut = allOut.map((record) => ({
           ...record,
           crop_stage: !record.crop_stage || ['NA', ''].includes(record.crop_stage) ? record.MsBl_End : record.crop_stage,
@@ -502,6 +493,7 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
       return 0;
     }),
   );
+  // add row logic
   const cropStageValues = [
     'cc_termination', 'Sowing', 'Germinated', 'Emerged', 'Tasselinit', 'Tasseled', 'Silked', 'Matured', 'Sim_ended', 'G05_End', 'MsBl_End',
   ];
@@ -519,28 +511,7 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
 
   // processing for cornOut
   const filteredModelOutForCorn = modelOut.filter((record) => ['Matured', 'Sim_ended'].includes(record.crop_stage));
-  let cornOut = [];
-  const cornOutColumns = Array.from(new Set([...Object.keys(modelInputData[0]), ...Object.keys(filteredModelOutForCorn[0])]));
-  filteredModelOutForCorn.forEach((recordModelOutCorn) => {
-    let match = false;
-    modelInputData.forEach((recordInput) => {
-      if (recordModelOutCorn.ID === recordInput.ID) {
-        match = true;
-        const newObj = {};
-        cornOutColumns.forEach((col) => {
-          newObj[col] = recordModelOutCorn[col] || recordInput[col] || null;
-        });
-        cornOut.push(newObj);
-      }
-    });
-    if (!match) {
-      const newObj = {};
-      cornOutColumns.forEach((col) => {
-        newObj[col] = recordModelOutCorn[col] || null;
-      });
-      cornOut.push(newObj);
-    }
-  });
+  let cornOut = leftJoin(filteredModelOutForCorn, modelInputData, ['ID'], ['ID']);
   cornOut = cornOut.map((record) => ({
     ID: record.ID,
     lat: record.lat,
@@ -562,10 +533,163 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
   cornOut.forEach((record) => {
     record.yield = Number((((Number(record.earDM) || 0) * 86) / 100).toFixed(2));
   });
-  cornOut = cornOut.filter((record) => Object.values(record).some((val) => val !== null && val !== undefined && val !== 0));
+  cornOut = cornOut.filter((record) => hasNonNullValues(record));
+
+  // processing for water out
+  let waterOut = modelOut.map((record) => ({
+    ID: record.ID,
+    crop_stage: record.crop_stage,
+    Date: record.Date,
+    SeasPSoEv: record.SeasPSoEv,
+    SeasASoEv: record.SeasASoEv,
+    SeasPTran: record.SeasPTran,
+    SeasATran: record.SeasATran,
+    SeasRain: record.SeasRain,
+    SeasInfil: record.SeasInfil,
+  }));
+  let newWaterOut = pivotWider(waterOut, 'crop_stage', 'ID');
+  newWaterOut = leftJoin(newWaterOut, modelInputData, ['ID'], ['ID']);
+  waterOut = newWaterOut.map((record) => ({
+    dt_cct: record.Date_cc_termination,
+    dt_Sow: record.Date_Sowing,
+    dt_Gmn: record.Date_Germinated,
+    dt_Emg: record.Date_Emerged,
+    dt_Tsint: record.Date_Tasselinit,
+    dt_Tsl: record.Date_Tasseled,
+    dt_Slk: record.Date_Silked,
+    dt_Gf: record.Date_grainFill,
+    dt_Mat: record.Date_Matured,
+    dt_SiEnd: record.Date_Sim_ended,
+    G05_End: new Date(record.Date_G05_End),
+    MsBl_End: new Date(record.Date_MsBl_End),
+    P_Ev_B4P: Number(((Number(record.SeasPSoEv_Sowing) || 0) - (Number(record.SeasPSoEv_cc_termination) || 0)).toFixed(2)),
+    P_Ev_EVg: Number(((Number(record.SeasPSoEv_Tasselinit) || 0) - (Number(record.SeasPSoEv_Sowing) || 0)).toFixed(2)),
+    P_Ev_LVg: Number(((Number(record.SeasPSoEv_Silked) || 0) - (Number(record.SeasPSoEv_Tasselinit) || 0)).toFixed(2)),
+    P_Ev_Slk: Number(((Number(record.SeasPSoEv_grainFill) || 0) - (Number(record.SeasPSoEv_Silked) || 0)).toFixed(2)),
+    P_Ev_Gf: Number(
+      (record.SeasPSoEv_Matured
+        ? Number(record.SeasPSoEv_Sim_ended) || 0
+        : Number(record.SeasPSoEv_Matured) || 0
+      ) - (Number(record.SeasPSoEv_grainFill) || 0).toFixed(2),
+    ),
+    P_Ev_Veg: Number(((Number(record.SeasPSoEv_Silked) || 0) - (Number(record.SeasPSoEv_Sowing) || 0)).toFixed(2)),
+    P_Ev_Rep: Number((
+      (record.SeasPSoEv_Matured
+        ? Number(record.SeasPSoEv_Sim_ended) || 0
+        : Number(record.SeasPSoEv_Matured) || 0
+      ) - (Number(record.SeasPSoEv_Silked) || 0)).toFixed(2)),
+    P_Ev_cum: Number((
+      (record.SeasPSoEv_Matured
+        ? Number(record.SeasPSoEv_Sim_ended) || 0
+        : Number(record.SeasPSoEv_Matured) || 0
+      ) - (Number(record.SeasPSoEv_Sowing) || 0)).toFixed(2)),
+    A_Ev_B4P: Number(((Number(record.SeasASoEv_Sowing) || 0) - (Number(record.SeasASoEv_cc_termination) || 0)).toFixed(2)),
+    A_Ev_EVg: Number(((Number(record.SeasASoEv_Tasselinit) || 0) - (Number(record.SeasASoEv_Sowing) || 0)).toFixed(2)),
+    A_Ev_LVg: Number(((Number(record.SeasASoEv_Silked) || 0) - (Number(record.SeasASoEv_Tasselinit) || 0)).toFixed(2)),
+    A_Ev_Slk: Number(((Number(record.SeasASoEv_grainFill) || 0) - (Number(record.SeasASoEv_Silked) || 0)).toFixed(2)),
+    A_Ev_Gf: Number((
+      (record.SeasASoEv_Matured
+        ? Number(record.SeasASoEv_Sim_ended) || 0
+        : Number(record.SeasASoEv_Matured) || 0
+      ) - (Number(record.SeasASoEv_grainFill) || 0)).toFixed(2)),
+    A_Ev_Veg: Number(((Number(record.SeasASoEv_Silked) || 0) - (Number(record.SeasASoEv_Sowing) || 0)).toFixed(2)),
+    A_Ev_Rep: Number((
+      (record.SeasASoEv_Matured
+        ? Number(record.SeasASoEv_Sim_ended) || 0
+        : Number(record.SeasASoEv_Matured) || 0
+      ) - (Number(record.SeasASoEv_Silked) || 0)).toFixed(2)),
+    A_Ev_cum: Number((
+      (record.SeasASoEv_Matured
+        ? Number(record.SeasASoEv_Sim_ended) || 0
+        : Number(record.SeasASoEv_Matured) || 0
+      ) - (Number(record.SeasASoEv_Sowing) || 0)).toFixed(2)),
+    P_Tr_B4P: Number(((Number(record.SeasPTran_Sowing) || 0) - (Number(record.SeasPTran_cc_termination) || 0)).toFixed(2)),
+    P_Tr_EVg: Number(((Number(record.SeasPTran_Tasselinit) || 0) - (Number(record.SeasPTran_Sowing) || 0)).toFixed(2)),
+    P_Tr_LVg: Number(((Number(record.SeasPTran_Silked) || 0) - (Number(record.SeasPTran_Tasselinit) || 0)).toFixed(2)),
+    P_Tr_Slk: Number(((Number(record.SeasPTran_grainFill) || 0) - (Number(record.SeasPTran_Silked) || 0)).toFixed(2)),
+    P_Tr_Gf: Number((
+      (record.SeasPTran_Matured
+        ? Number(record.SeasPTran_Sim_ended) || 0
+        : Number(record.SeasPTran_Matured) || 0
+      ) - (Number(record.SeasPTran_grainFill) || 0)).toFixed(2)),
+    P_Tr_Veg: Number(((Number(record.SeasPTran_Silked) || 0) - (Number(record.SeasPTran_Sowing) || 0)).toFixed(2)),
+    P_Tr_Rep: Number((
+      (record.SeasPTran_Matured
+        ? Number(record.SeasPTran_Sim_ended) || 0
+        : Number(record.SeasPTran_Matured) || 0
+      ) - (Number(record.SeasPTran_Silked) || 0)).toFixed(2)),
+    P_Tr_cum: Number((
+      (record.SeasPTran_Matured
+        ? Number(record.SeasPTran_Sim_ended) || 0
+        : Number(record.SeasPTran_Matured) || 0
+      ) - (Number(record.SeasPTran_Sowing) || 0)).toFixed(2)),
+    A_Tr_B4P: Number(((Number(record.SeasATran_Sowing) || 0) - (Number(record.SeasATran_cc_termination) || 0)).toFixed(2)),
+    A_Tr_EVg: Number(((Number(record.SeasATran_Tasselinit) || 0) - (Number(record.SeasATran_Sowing) || 0)).toFixed(2)),
+    A_Tr_LVg: Number(((Number(record.SeasATran_Silked) || 0) - (Number(record.SeasATran_Tasselinit) || 0)).toFixed(2)),
+    A_Tr_Slk: Number(((Number(record.SeasATran_grainFill) || 0) - (Number(record.SeasATran_Silked) || 0)).toFixed(2)),
+    A_Tr_Gf: Number((
+      (record.SeasATran_Matured
+        ? Number(record.SeasATran_Sim_ended) || 0
+        : Number(record.SeasATran_Matured) || 0
+      ) - (Number(record.SeasATran_grainFill) || 0)).toFixed(2)),
+    A_Tr_Veg: Number(((Number(record.SeasATran_Silked) || 0) - (Number(record.SeasATran_Sowing) || 0)).toFixed(2)),
+    A_Tr_Rep: Number((
+      (record.SeasATran_Matured
+        ? Number(record.SeasATran_Sim_ended) || 0
+        : Number(record.SeasATran_Matured) || 0
+      ) - (Number(record.SeasATran_Silked) || 0)).toFixed(2)),
+    A_Tr_cum: Number((
+      (record.SeasATran_Matured
+        ? Number(record.SeasATran_Sim_ended) || 0
+        : Number(record.SeasATran_Matured) || 0
+      ) - (Number(record.SeasATran_Sowing) || 0)).toFixed(2)),
+    Rain_B4P: Number(((Number(record.SeasRain_Sowing) || 0) - (Number(record.SeasRain_cc_termination) || 0)).toFixed(2)),
+    Rain_EVg: Number(((Number(record.SeasRain_Tasselinit) || 0) - (Number(record.SeasRain_Sowing) || 0)).toFixed(2)),
+    Rain_LVg: Number(((Number(record.SeasRain_Silked) || 0) - (Number(record.SeasRain_Tasselinit) || 0)).toFixed(2)),
+    Rain_Slk: Number(((Number(record.SeasRain_grainFill) || 0) - (Number(record.SeasRain_Silked) || 0)).toFixed(2)),
+    Rain_Gf: Number((
+      (record.SeasRain_Matured
+        ? Number(record.SeasRain_Sim_ended) || 0
+        : Number(record.SeasRain_Matured) || 0
+      ) - (Number(record.SeasRain_grainFill) || 0)).toFixed(2)),
+    Rain_Veg: Number(((Number(record.SeasRain_Silked) || 0) - (Number(record.SeasRain_Sowing) || 0)).toFixed(2)),
+    Rain_Rep: Number((
+      (record.SeasRain_Matured
+        ? Number(record.SeasRain_Sim_ended) || 0
+        : Number(record.SeasRain_Matured) || 0
+      ) - (Number(record.SeasRain_Silked) || 0)).toFixed(2)),
+    Rain_cum: Number((
+      (record.SeasRain_Matured
+        ? Number(record.SeasRain_Sim_ended) || 0
+        : Number(record.SeasRain_Matured) || 0
+      ) - (Number(record.SeasRain_Sowing) || 0)).toFixed(2)),
+    Infl_B4P: Number(((Number(record.SeasInfil_Sowing) || 0) - (Number(record.SeasInfil_cc_termination) || 0)).toFixed(2)),
+    Infl_EVg: Number(((Number(record.SeasInfil_Tasselinit) || 0) - (Number(record.SeasInfil_Sowing) || 0)).toFixed(2)),
+    Infl_LVg: Number(((Number(record.SeasInfil_Silked) || 0) - (Number(record.SeasInfil_Tasselinit) || 0)).toFixed(2)),
+    Infl_Slk: Number(((Number(record.SeasInfil_grainFill) || 0) - (Number(record.SeasInfil_Silked) || 0)).toFixed(2)),
+    Infl_Gf: Number((
+      (record.SeasInfil_Matured
+        ? Number(record.SeasInfil_Sim_ended) || 0
+        : Number(record.SeasInfil_Matured) || 0
+      ) - (Number(record.SeasInfil_grainFill) || 0)).toFixed(2)),
+    Infl_Veg: Number(((Number(record.SeasInfil_Silked) || 0) - (Number(record.SeasInfil_Sowing) || 0)).toFixed(2)),
+    Infl_Rep: Number((
+      (record.SeasInfil_Matured
+        ? Number(record.SeasInfil_Sim_ended) || 0
+        : Number(record.SeasInfil_Matured) || 0
+      ) - (Number(record.SeasInfil_Silked) || 0)).toFixed(2)),
+    Infl_cum: Number((
+      (record.SeasInfil_Matured
+        ? Number(record.SeasInfil_Sim_ended) || 0
+        : Number(record.SeasInfil_Matured) || 0
+      ) - (Number(record.SeasInfil_Sowing) || 0)).toFixed(2)),
+    ID: record.ID,
+    GO5_End: record.GO5_End,
+  }));
+  waterOut = waterOut.filter((record) => hasNonNullValues(record));
 
   console.log(
-    'corn out: ',
-    cornOut,
+    'water out: ',
+    newWaterOut,
   );
 };
