@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
@@ -7,8 +8,9 @@ import Input from '../Inputs';
 import Help from '../Help';
 
 import { get, set } from '../../store/Store';
-
 import './styles.scss';
+
+console.log(get);
 
 const OpeningMap = () => (
   <Map
@@ -50,6 +52,7 @@ const InteractiveMap = () => (
 ); // InteractiveMap
 
 const Location = () => {
+  console.log(get.map);
   const { lat, lon } = useSelector(get.map);
   return (
     <div className="locationWrapper">
