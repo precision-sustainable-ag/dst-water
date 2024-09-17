@@ -1,3 +1,5 @@
+/* eslint-disable no-alert */
+/* eslint-disable no-console */
 /* eslint-disable no-underscore-dangle */
 import React, { useRef, useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
@@ -5,10 +7,6 @@ import { useSelector, useDispatch } from 'react-redux';
 import mapboxgl from 'mapbox-gl';
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 import MapboxDraw from '@mapbox/mapbox-gl-draw';
-
-const MAPBOX_TOKEN = typeof process !== 'undefined'
-  ? process.env.REACT_APP_MAPBOX_API_KEY
-  : import.meta.env.VITE_MAPBOX_API_KEY;
 
 import area from '@turf/area';
 import bbox from '@turf/bbox';
@@ -30,6 +28,13 @@ import './mapbox-gl.css';
 import './mapbox-gl-draw.css';
 import './mapbox-gl-geocoder.css';
 import './psa-mapbox.scss';
+
+const MAPBOX_TOKEN = typeof process !== 'undefined'
+  ? process.env.REACT_APP_MAPBOX_API_KEY
+  : import.meta.env.VITE_MAPBOX_API_KEY;
+
+console.log(MAPBOX_TOKEN);
+console.log(import.meta.env);
 
 const turf = {
   area,
