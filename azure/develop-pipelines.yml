@@ -33,6 +33,12 @@ stages:
     pool:
       vmImage: $(vmImageName)
     steps:
+    - script: |
+        echo VITE_MAPBOX_API_KEY="$(VITE_MAPBOX_API_KEY)" >> /home/vsts/work/1/s/.env
+        echo VITE_AUTH0_DOMAIN="$(VITE_AUTH0_DOMAIN)" >> /home/vsts/work/1/s/.env
+        echo VITE_AUTH0_CLIENT_ID="$(VITE_AUTH0_CLIENT_ID)" >> /home/vsts/work/1/s/.env
+        echo VITE_AUTH0_AUDIENCE="$(VITE_AUTH0_AUDIENCE)" >> /home/vsts/work/1/s/.env
+      displayName: "Create .env"
     - task: Docker@2
       displayName: Build and push an image to container registry
       inputs:
