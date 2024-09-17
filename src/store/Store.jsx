@@ -8,7 +8,7 @@
 import React from 'react';
 // eslint-disable-next-line no-unused-vars
 import { current } from '@reduxjs/toolkit';
-import { createStore, set } from './redux-autosetters';
+import { createStore, set } from 'redux-autosetters';
 
 const initialState = {
   start: 0,
@@ -20,17 +20,27 @@ const initialState = {
   screen: '',
   field: '',
   file: '',
-  lat: 40.7849,
-  lon: -74.8073,
-  mapAddress: '',
-  mapZoom: 13,
-  mapType: 'hybrid',
-  mapPolygon: [],
-  maxZoom: 20,
+  map: {
+    lat: 0,
+    lon: 0,
+    elevation: 0,
+    zoom: 13,
+    area: 0,
+    bounds: 'conus',
+    address: {
+      address: '',
+      fullAddress: '',
+      city: '',
+      county: '',
+      state: '',
+      stateCode: '',
+      zipCode: '',
+    },
+    features: [],
+  },
   model: {},
   SSURGO: {},
   gotSSURGO: false,
-  state: '',
   unit: 'lb/ac',
   location: '',
   privacy: false,
@@ -929,4 +939,4 @@ export const api = ({
   }, delay);
 }; // api
 
-export { set, get } from './redux-autosetters';
+export { set, get } from 'redux-autosetters';
