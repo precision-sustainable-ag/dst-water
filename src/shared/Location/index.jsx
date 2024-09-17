@@ -52,7 +52,9 @@ const InteractiveMap = () => (
 ); // InteractiveMap
 
 const Location = () => {
-  console.log(get.map);
+  console.log(1, get.map);
+  console.log(2, get.map.lat);
+  console.log(3, get.map.lon);
   const { lat, lon } = useSelector(get.map);
   return (
     <div className="locationWrapper">
