@@ -1,8 +1,8 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import Map from '../Map';
-// import Map from 'redux-map';
+// import Map from '../Map';
+import Map from 'redux-map';
 import Input from '../Inputs';
 import Help from '../Help';
 
