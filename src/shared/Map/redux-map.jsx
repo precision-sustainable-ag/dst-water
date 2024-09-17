@@ -33,8 +33,8 @@ const MAPBOX_TOKEN = typeof process !== 'undefined'
   ? process.env.REACT_APP_MAPBOX_API_KEY
   : import.meta.env.VITE_MAPBOX_API_KEY;
 
-// console.log(MAPBOX_TOKEN);
-// console.log(import.meta.env);
+console.log(MAPBOX_TOKEN);
+console.log(import.meta.env);
 
 const turf = {
   area,
