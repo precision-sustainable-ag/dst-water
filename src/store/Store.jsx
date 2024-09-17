@@ -784,7 +784,7 @@ const initialState = {
 };
 
 const fetchSSURGOWater = (state) => {
-  const { lat, lon } = state;
+  const { lat, lon } = state.map;
 
   state.gotSSURGO = false;
 
@@ -810,8 +810,8 @@ const fetchSSURGOWater = (state) => {
 }; // fetchSSURGOWater
 
 const afterChange = {
-  lat: (state) => fetchSSURGOWater(state),
-  lon: (state) => fetchSSURGOWater(state),
+  'map.lat': (state) => fetchSSURGOWater(state),
+  'map.lon': (state) => fetchSSURGOWater(state),
   site: (state) => {
     const desc = state.xl.Description.find((obj) => obj.path === state.site);
 
