@@ -2,15 +2,12 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-// import Map from '../Map';
 import Map from 'redux-map';
 import Input from '../Inputs';
 import Help from '../Help';
 
 import { get, set } from '../../store/Store';
 import './styles.scss';
-
-console.log(get);
 
 const OpeningMap = () => (
   <Map
@@ -52,15 +49,15 @@ const InteractiveMap = () => (
 ); // InteractiveMap
 
 const Location = () => {
-  console.log(1, get.map);
-  console.log(2, get.map.lat);
-  console.log(3, get.map.lon);
-  try { console.log(useSelector(get.map)); } catch (ee) { console.log(1, ee); }
-  try { console.log(useSelector(get.map.lat)); } catch (ee) { console.log(2, ee); }
-  try { console.log(useSelector(get.map.lon)); } catch (ee) { console.log(3, ee); }
+  // console.log(1, get.map);
+  // console.log(2, get.map.lat);
+  // console.log(3, get.map.lon);
+  // try { console.log(useSelector(get.map)); } catch (ee) { console.log(1, ee); }
+  // try { console.log(useSelector(get.map.lat)); } catch (ee) { console.log(2, ee); }
+  // try { console.log(useSelector(get.map.lon)); } catch (ee) { console.log(3, ee); }
 
   const { lat, lon } = useSelector(get.map);
-  console.log('here');
+  // console.log('here');
   return (
     <div className="locationWrapper">
       <div className="mapHeader">
