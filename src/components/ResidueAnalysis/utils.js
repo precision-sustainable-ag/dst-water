@@ -388,7 +388,7 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
       }));
 
       // prcoessing for allAtmosDataG05
-      let allAtmosDataG05 = g05File.map(({ Date_time, ...rest }) => ({
+      let allAtmosDataG05 = g05File.map(({ dateTime, ...rest }) => ({
         ...rest,
         ID: (() => {
           const p = (inputFile.files.G05).split('/');

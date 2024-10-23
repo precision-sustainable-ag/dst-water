@@ -1,6 +1,3 @@
-/* eslint-disable no-console */
-// // code breaking eslint rules were disabled --- MILAD
-/* eslint-disable no-alert */
 /* eslint-disable camelcase */
 /* eslint-disable max-len */
 /* eslint-disable no-use-before-define */
@@ -8,7 +5,7 @@
 import React from 'react';
 // eslint-disable-next-line no-unused-vars
 import { current } from '@reduxjs/toolkit';
-import { createStore, set } from './redux-autosetters';
+import { createStore, set } from 'redux-autosetters';
 
 const initialState = {
   map: {
@@ -786,8 +783,7 @@ const initialState = {
 };
 
 const fetchSSURGOWater = (state) => {
-  const { lat, lon } = state;
-
+  const { lat, lon } = state.map;
   state.gotSSURGO = false;
 
   const url = `https://ssurgo.covercrop-data.org/?lat=${lat}&lon=${lon}&component=major`;
@@ -812,8 +808,8 @@ const fetchSSURGOWater = (state) => {
 }; // fetchSSURGOWater
 
 const afterChange = {
-  lat: (state) => fetchSSURGOWater(state),
-  lon: (state) => fetchSSURGOWater(state),
+  'map.lat': (state) => fetchSSURGOWater(state),
+  'map.lon': (state) => fetchSSURGOWater(state),
   site: (state) => {
     const desc = state.xl.Description.find((obj) => obj.path === state.site);
 
@@ -941,4 +937,4 @@ export const api = ({
   }, delay);
 }; // api
 
-export { set, get } from './redux-autosetters';
+export { set, get } from 'redux-autosetters';
