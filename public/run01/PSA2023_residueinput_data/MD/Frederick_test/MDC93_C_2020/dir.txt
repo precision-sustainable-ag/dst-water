@@ -1,0 +1,28 @@
+ Volume in drive D is SSD2
+ Volume Serial Number is 4648-CB5F
+
+ Directory of D:\PSA_Projects\CROWN_Geospatial\inputs_residue\MDC93_C_2020
+
+06/03/2022  09:13 AM    <DIR>          .
+06/03/2022  09:13 AM    <DIR>          ..
+04/25/2022  07:06 AM               362 BiologyDefault.bio
+06/03/2022  09:13 AM                 0 createError.log
+04/25/2022  07:06 AM             1,610 default.nit
+06/03/2022  09:13 AM                 0 dir.txt
+04/25/2022  07:06 AM               255 grid1.bat
+04/25/2022  07:06 AM                20 grid2.bat
+06/03/2022  09:13 AM               485 MDC93.dat
+04/25/2022  07:06 AM               161 MDC93_C_2020.drp
+06/03/2022  09:13 AM            21,491 MDC93_C_2020.grd
+04/25/2022  07:06 AM               592 MDC93_C_2020.ini
+04/25/2022  07:06 AM             2,573 MDC93_C_2020.lyr
+05/31/2022  04:14 PM               928 MDC93_C_2020.man
+06/03/2022  09:13 AM            35,346 MDC93_C_2020.nod
+04/25/2022  07:06 AM               384 MDC93_C_2020.tim
+04/25/2022  07:06 AM               690 MDC93_h.cli
+04/25/2022  07:06 AM             1,500 MulchGeo1.mul
+04/25/2022  07:06 AM               700 NitrogenDefault.sol
+04/25/2022  07:06 AM             2,583 PSA_16.var
+04/25/2022  07:06 AM             1,973 run.dat
+              19 File(s)         71,653 bytes
+               2 Dir(s)  1,886,091,415,552 bytes free

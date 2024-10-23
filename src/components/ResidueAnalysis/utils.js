@@ -1,20 +1,25 @@
 import xlsx from 'xlsx';
 
-const baseLocation = '../../../public/CROWN_Geospatial/';
+// const baseLocation = '../../../public/CROWN_Geospatial/';
+const baseLocation = 'run01/';
 
 const fileLocations = {
   templates: {
     MD: {
-      Frederick_test: `${baseLocation}PSA2023_residueinput_templates/geospatial_template_MD_Frederick_test.xlsx`,
+      // Frederick_test: `${baseLocation}PSA2023_residueinput_templates/geospatial_template_MD_Frederick_test.xlsx`,
+      Frederick_test: 'geospatial_template_MD_Frederick_test.xlsx',
     },
   },
   modelPath: 'PSA2023_residueinput_data',
   modelSubfolders: { // look for files MassBl.out, subfolder.g01 and subfolder.g05 files
     MD: {
       Frederick_test: {
-        baseName: 'MDC410_C_',
-        startYear: 2008,
-        endYear: 2022,
+        // baseName: 'MDC410_C_',
+        // startYear: 2008,
+        // endYear: 2022,
+        baseName: 'MDC93_C_',
+        startYear: 2020,
+        endYear: 2020,
       },
     },
   },
@@ -33,12 +38,15 @@ export const getModelPaths = (state, county) => {
   const paths = [];
   for (let year = subfolderConfig.startYear; year <= subfolderConfig.endYear; year++) {
     const location = `${subfolder}/${subfolderConfig.baseName}${year}/`;
+    console.log(location);
+    console.log(`${location}${subfolderConfig.baseName + year}.g01`.replace(/\//g, '\\'));
+    console.log(`${location}MassBl.out`.replace(/\//g, '\\'));
     const path = {
       subfolder: subfolderConfig.baseName + year,
       files: {
         MassBL: `${location}MassBl.out`,
         G01: `${location}${subfolderConfig.baseName + year}.g01`,
-        G05: `${location}${subfolderConfig.baseName + year}.g05`,
+        G05: `${location}${subfolderConfig.baseName + year}.G05`,
       },
     };
     paths.push(path);
@@ -896,6 +904,9 @@ export const geospatialProcessing = async (fileDir, init, ccTerminationDate) => 
     end_date: record.end_date,
   }));
   combinedOut = leftJoin(combinedOut, filteredInput, ['ID'], ['ID']);
+
+  combinedOut = combinedOut.filter((c) => c.ID);
+  console.log(combinedOut);
   combinedOut = combinedOut.map((record) => ({
     modl_run: (
       record.dt_Mat

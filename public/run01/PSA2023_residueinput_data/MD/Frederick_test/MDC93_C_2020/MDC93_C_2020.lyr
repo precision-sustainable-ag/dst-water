@@ -1,0 +1,16 @@
+surface ratio    internal ratio: ratio of the distance between two neighboring nodes
+ 1.001         2             1.001         5 
+Row Spacing
+ 76.2 
+ Planting Depth  X limit for roots 
+ 5             23            0 
+ Boundary code for bottom layer (for all bottom nodes) 1 constant -2 seepage face 
+-7 
+ Bottom depth Init Type  OM (%/100)  no3(ppm)    NH4         hNew   Tmpr    Sand     Silt    Clay     BD     TH33     TH1500  thr ths tha th  Alfa    n   Ks  Kk  thk
+ 25           'm'            0.0325        34.25         2.055        -200           23            0.231         0.546         0.223         1.37          0.27          0.13         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 43           'm'            0.0033        7.55          0.755        -200           23            0.221         0.546         0.233         1.51          0.25          0.11         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 56           'm'            0.0016        7.6           0.76         -200           23            0.219         0.476         0.305         1.52          0.29          0.16         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 76           'm'            0.0016        2.28          0.76         -200           23            0.223         0.45          0.327         1.52          0.3           0.17         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 97           'm'            0.0016        2.31          0.77         -200           23            0.228         0.434         0.338         1.54          0.3           0.17         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 142          'm'            0.0009        2.31          0.77         -200           23            0.266         0.477         0.257         1.54          0.28          0.12         -1            -1            -1            -1            -1            -1            -1            -1            -1 
+ 234          'm'            0.0008        2.34          0.78         -200           23            0.544         0.356         0.1           1.56          0.12          0.03         -1            -1            -1            -1            -1            -1            -1            -1            -1 

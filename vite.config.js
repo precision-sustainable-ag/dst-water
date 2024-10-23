@@ -12,6 +12,14 @@ export default defineConfig({
     strictPort: true,
     port: 3000,
   },
+  optimizeDeps: {
+    include: [
+      'mapbox-gl',
+      '@mapbox/mapbox-gl-draw',
+      '@mapbox/mapbox-gl-geocoder',
+      'wellknown',
+    ],
+  },
   build: {
     outDir: '/usr/src/app/build',
   },

@@ -9,11 +9,11 @@ const Soil = () => {
   const dispatch = useDispatch();
   const gotSSURGO = useSelector(get.gotSSURGO);
   const SSURGO = useSelector(get.SSURGO);
-  const lat = useSelector(get.lat);
+  const lat = useSelector(get.map.lat);
 
   useEffect(() => {
     if (!gotSSURGO) {
-      dispatch(set.lat(lat));
+      dispatch(set.map.lat(lat));
     }
   }, [gotSSURGO, dispatch, lat]);
 
