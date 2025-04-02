@@ -40,6 +40,8 @@ const InteractiveMap = () => (
     hasElevation
     hasClear
     hasHelp
+    hasMarkerPopup
+    showCursorCoords
     otherHelp={(
       <p>
         To restart all location services, use the &quot;Clear Location&quot; button in the upper right of the screen.
