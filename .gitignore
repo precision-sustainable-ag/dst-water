@@ -26,6 +26,7 @@ yarn-error.log*
 .env
 pnpm-lock.yaml
 
+
 # data files for development
 CROWN_Geospatial
 todo.md
@@ -36,3 +37,6 @@ public/.Rhistory
 .RData
 .Rhistory
 *.out
+
+todo.md
+

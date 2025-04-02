@@ -35,8 +35,24 @@ const initialState = {
   screen: '',
   field: '',
   file: '',
-  lat: 40.7849,
-  lon: -74.8073,
+  map: {
+    lat: 0,
+    lon: 0,
+    elevation: 0,
+    zoom: 13,
+    area: 0,
+    bounds: 'conus',
+    address: {
+      address: '',
+      fullAddress: '',
+      city: '',
+      county: '',
+      state: '',
+      stateCode: '',
+      zipCode: '',
+    },
+    features: [],
+  },
   model: {},
   SSURGO: {},
   gotSSURGO: false,
@@ -784,6 +800,7 @@ const initialState = {
 
 const fetchSSURGOWater = (state) => {
   const { lat, lon } = state.map;
+
   state.gotSSURGO = false;
 
   const url = `https://ssurgo.covercrop-data.org/?lat=${lat}&lon=${lon}&component=major`;

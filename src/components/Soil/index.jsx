@@ -9,7 +9,8 @@ const Soil = () => {
   const dispatch = useDispatch();
   const gotSSURGO = useSelector(get.gotSSURGO);
   const SSURGO = useSelector(get.SSURGO);
-  const lat = useSelector(get.map.lat);
+
+  const { lat } = useSelector(get.map);
 
   useEffect(() => {
     if (!gotSSURGO) {
