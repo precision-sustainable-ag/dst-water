@@ -2,7 +2,7 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import Map from 'redux-map';
+import { PSAReduxMap as Map } from 'shared-react-components/src';
 import Input from '../Inputs';
 import Help from '../Help';
 

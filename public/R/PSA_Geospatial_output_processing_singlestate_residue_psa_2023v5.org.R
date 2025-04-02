@@ -368,9 +368,16 @@ geospatial_processing <- function(FileDir, Init, cc_termination_date, Processed_
 "For you to run this function, which I call 'geospatial_processing' and process model outputs for any given county, follow the following steps.
 In this example, I processed model outputs for grid cells from calvert county in MD."
 
-template_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_templates/"
-output_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_data/"
-processed_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueoutput_data/"
+# template_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_templates/"
+# output_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_data/"
+# processed_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueoutput_data/"
+
+mainpath <- paste0(dirname(rstudioapi::getActiveDocumentContext()$path), "/")
+setwd(mainpath)
+
+template_mainpath = mainpath
+output_mainpath = paste0(mainpath, "PSA2023_residueinput_data/")
+processed_mainpath = mainpath
 
 state = "MD"
 county = "Frederick_test"

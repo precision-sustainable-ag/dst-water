@@ -29,3 +29,10 @@ pnpm-lock.yaml
 # data files for development
 CROWN_Geospatial
 todo.md
+public/.RData
+public/.Rhistory
+*.g01
+*.g05
+.RData
+.Rhistory
+*.out

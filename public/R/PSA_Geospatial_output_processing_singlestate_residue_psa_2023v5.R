@@ -52,14 +52,14 @@ geospatial_processing <- function(FileDir, Init, cc_termination_date, Processed_
       distinct() %>%
       dplyr::mutate(ID_new = str_replace(ID, '_.*_','_')) %>%
       dplyr::select(ID_new, date_residue)
-  
+
   # Join Init and cc_termination_date files together by ID_new
   model_input_data <- Init %>%
     dplyr::full_join(cc_termination_date, by = 'ID_new') %>%
     dplyr::mutate(date_residue = lubridate::mdy(date_residue),
                   management = 'cc_termination') %>%
     dplyr::select(ID, lat, long, altitude, population, end_date, date_residue, management)
-    
+
   for(i in FileDir){
     skip_to_next <- FALSE
     G01_Files <- list.files(path = i, pattern = "*.g01", full.names = TRUE, recursive = TRUE)
@@ -92,19 +92,26 @@ geospatial_processing <- function(FileDir, Init, cc_termination_date, Processed_
     })
     )
   
+    #Below - for G05, ran into issue with fread incorrectly adding ',' to all variables when I use header=true, or, as I left it, incorrectly adding a new column and messing up the column names
+    #Below is a clunky fix but it appears to work
+    t_old = c("Date_time","Date","PSoilEvap","ASoilEVap","PET_PEN","PE_T_int","transp","CumRain","infil","FLuxAct","Drainage","N_Leach","Runoff","cover","PSIM","SeasPSoEv","SeasASoEv","SeasPTran","SeasATran","SeasRain","SeasInfil",
+              "CO2FLux","ID")
+    t_new = c("Date","PSoilEvap","ASoilEVap","PET_PEN","PE_T_int","transp","CumRain","infil","FLuxAct","Drainage","N_Leach","Runoff","cover","PSIM","SeasPSoEv","SeasASoEv","SeasPTran","SeasATran","SeasRain","SeasInfil",
+              "CO2FLux","O2FLux","ID")
     AllAtmosData_G05 <- data.table::rbindlist(lapply(G05_Files, function(x) {
-      out <- data.table::fread(x, header = TRUE) %>%
-        dplyr::mutate(Date = lubridate::mdy(Date),
-                      ID = basename(dirname(x))) %>% # create a new column to indicate each simulations.
-        dplyr::arrange(Date) %>%
-        dplyr::mutate(GO5_End = ifelse(row_number() == n(), 'GO5_End', 'NA')) %>%
-        dplyr::select(ID, Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil, GO5_End)
+      out <- data.table::fread(x, sep = ',') %>%
+      dplyr::mutate(ID = basename(dirname(x)))  # create a new column to indicate each simulations.
       return(out)
-    })
-    )
-    
+      })) %>%  # had issues with 'header = TRUE' option adding a comma to all variables, replaced with sep
+      select(2:23,25) %>%
+      rename_with(~ t_new, all_of(t_old)) %>%
+      dplyr::mutate(Date = lubridate::mdy(Date)) %>%
+      dplyr::arrange(Date) %>%
+      dplyr::mutate(GO5_End = ifelse(row_number() == n(), 'GO5_End', 'NA')) %>%
+      dplyr::select(ID, Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil, GO5_End)
+
     AllMassBlData <- data.table::rbindlist(lapply(MassBl_Files, function(x) {
-      out <- data.table::fread(x, header = TRUE) %>%
+      out <- data.table::fread(x, sep = ',') %>% # had issues with 'header = TRUE' option adding a comma to all variables?, replaced with sep
         dplyr::mutate(Date = lubridate::mdy(Date),
                       Inorg_N = as.numeric(Min_N) + as.numeric(Ammon_N),
                       Litr_N = as.numeric(Litter_N),
@@ -176,78 +183,78 @@ geospatial_processing <- function(FileDir, Init, cc_termination_date, Processed_
       dplyr::filter_all(any_vars(!is.na(.)))
     
    # water balance related metrics
-    water_out <- model_out %>%
-      dplyr::select(ID, crop_stage, Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil) %>%
-      tidyr::pivot_wider(names_from = crop_stage, values_from = c(Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil)) %>%
-      dplyr::left_join(model_input_data, by = c('ID')) %>%
-      dplyr::mutate(dt_cct = Date_cc_termination,
-                    dt_Sow = Date_Sowing,
-                    dt_Gmn = Date_Germinated,
-                    dt_Emg = Date_Emerged,
-                    dt_Tsint = Date_Tasselinit,
-                    dt_Tsl = Date_Tasseled,
-                    dt_Slk = Date_Silked,
-                    dt_Gf = Date_grainFill,
-                    dt_Mat = Date_Matured,
-                    dt_SiEnd = Date_Sim_ended, 
-                    GO5_End = as.Date(Date_GO5_End, format = "%m/%d/%Y"),
-                    MsBl_End = as.Date(Date_MsBl_End, format = "%m/%d/%Y"),
-                    P_Ev_B4P = round(((SeasPSoEv_Sowing - SeasPSoEv_cc_termination)),2), # Converting from g/plant to mm.
-                    P_Ev_EVg = round(((SeasPSoEv_Tasselinit - SeasPSoEv_Sowing)),2),
-                    P_Ev_LVg = round(((SeasPSoEv_Silked - SeasPSoEv_Tasselinit)),2),
-                    P_Ev_Slk = round(((SeasPSoEv_grainFill - SeasPSoEv_Silked)),2),
-                    P_Ev_Gf = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_grainFill)),2),
-                    P_Ev_Veg = round(((SeasPSoEv_Silked - SeasPSoEv_Sowing)),2),
-                    P_Ev_Rep = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_Silked)),2),
-                    P_Ev_cum = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_Sowing)),2),
-                    A_Ev_B4P = round(((SeasASoEv_Sowing - SeasASoEv_cc_termination)),2),
-                    A_Ev_EVg = round(((SeasASoEv_Tasselinit - SeasASoEv_Sowing)),2),
-                    A_Ev_LVg = round(((SeasASoEv_Silked - SeasASoEv_Tasselinit)),2),
-                    A_Ev_Slk = round(((SeasASoEv_grainFill - SeasASoEv_Silked)),2),
-                    A_Ev_Gf = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_grainFill)),2),
-                    A_Ev_Veg = round(((SeasASoEv_Silked - SeasASoEv_Sowing)),2),
-                    A_Ev_Rep = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_Silked)),2),
-                    A_Ev_cum = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_Sowing)),2),
-                    P_Tr_B4P = round(((SeasPTran_Sowing - SeasPTran_cc_termination)),2),
-                    P_Tr_EVg = round(((SeasPTran_Tasselinit - SeasPTran_Sowing)),2),
-                    P_Tr_LVg = round(((SeasPTran_Silked - SeasPTran_Tasselinit)),2),
-                    P_Tr_Slk = round(((SeasPTran_grainFill - SeasPTran_Silked)),2),
-                    P_Tr_Gf = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_grainFill)),2),
-                    P_Tr_Veg = round(((SeasPTran_Silked - SeasPTran_Sowing)),2),
-                    P_Tr_Rep = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_Silked)),2),
-                    P_Tr_cum = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_Sowing)),2),
-                    A_Tr_B4P = round(((SeasATran_Sowing - SeasATran_cc_termination)),2),
-                    A_Tr_EVg = round(((SeasATran_Tasselinit - SeasATran_Sowing)),2),
-                    A_Tr_LVg = round(((SeasATran_Silked - SeasATran_Tasselinit)),2),
-                    A_Tr_Slk = round(((SeasATran_grainFill - SeasATran_Silked)),2),
-                    A_Tr_Gf = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_grainFill)),2),
-                    A_Tr_Veg = round(((SeasATran_Silked - SeasATran_Sowing)),2),
-                    A_Tr_Rep = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_Silked)),2),
-                    A_Tr_cum = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_Sowing)),2),
-                    Rain_B4P = round(((SeasRain_Sowing - SeasRain_cc_termination)),2),
-                    Rain_EVg = round(((SeasRain_Tasselinit - SeasRain_Sowing)),2),
-                    Rain_LVg = round(((SeasRain_Silked - SeasRain_Tasselinit)),2),
-                    Rain_Slk = round(((SeasRain_grainFill - SeasRain_Silked)),2),
-                    Rain_Gf = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_grainFill)),2),
-                    Rain_Veg = round(((SeasRain_Silked - SeasRain_Sowing)),2),
-                    Rain_Rep = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_Silked)),2),
-                    Rain_cum = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_Sowing)),2),
-                    Infl_B4P = round(((SeasInfil_Sowing - SeasInfil_cc_termination)),2),
-                    Infl_EVg = round(((SeasInfil_Tasselinit - SeasInfil_Sowing)),2),
-                    Infl_LVg = round(((SeasInfil_Silked - SeasInfil_Tasselinit)),2),
-                    Infl_Slk = round(((SeasInfil_grainFill - SeasInfil_Silked)),2),
-                    Infl_Gf = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_grainFill)),2),
-                    Infl_Veg = round(((SeasInfil_Silked - SeasInfil_Sowing)),2),
-                    Infl_Rep = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_Silked)),2),
-                    Infl_cum = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_Sowing)),2)) %>%
-      dplyr::select(ID, dt_cct, dt_Sow, dt_Gmn, dt_Emg, dt_Tsint, dt_Tsl, dt_Slk, dt_Gf, dt_Mat, dt_SiEnd, GO5_End, MsBl_End,
-                    P_Ev_B4P, P_Ev_EVg, P_Ev_LVg, P_Ev_Slk, P_Ev_Gf, P_Ev_Veg, P_Ev_Rep, P_Ev_cum,
-                    A_Ev_B4P, A_Ev_EVg, A_Ev_LVg, A_Ev_Slk, A_Ev_Gf, A_Ev_Veg, A_Ev_Rep, A_Ev_cum,
-                    P_Tr_B4P, P_Tr_EVg, P_Tr_LVg, P_Tr_Slk, P_Tr_Gf, P_Tr_Veg, P_Tr_Rep, P_Tr_cum,
-                    A_Tr_B4P, A_Tr_EVg, A_Tr_LVg, A_Tr_Slk, A_Tr_Gf, A_Tr_Veg, A_Tr_Rep, A_Tr_cum,
-                    Rain_B4P, Rain_EVg, Rain_LVg, Rain_Slk, Rain_Gf, Rain_Veg, Rain_Rep, Rain_cum,
-                    Infl_B4P, Infl_EVg, Infl_LVg, Infl_Slk, Infl_Gf, Infl_Veg, Infl_Rep, Infl_cum,) %>%
-      dplyr::filter_all(any_vars(!is.na(.)))
+   water_out <- model_out %>%
+     dplyr::select(ID, crop_stage, Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil) %>%
+     tidyr::pivot_wider(names_from = crop_stage, values_from = c(Date, SeasPSoEv, SeasASoEv, SeasPTran, SeasATran, SeasRain, SeasInfil)) %>%
+     dplyr::left_join(model_input_data, by = c('ID')) %>%
+     dplyr::mutate(dt_cct = Date_cc_termination,
+                   dt_Sow = Date_Sowing,
+                   dt_Gmn = Date_Germinated,
+                   dt_Emg = Date_Emerged,
+                   dt_Tsint = Date_Tasselinit,
+                   dt_Tsl = Date_Tasseled,
+                   dt_Slk = Date_Silked,
+                   dt_Gf = Date_grainFill,
+                   dt_Mat = Date_Matured,
+                   dt_SiEnd = Date_Sim_ended, 
+                   GO5_End = as.Date(Date_GO5_End, format = "%m/%d/%Y"),
+                   MsBl_End = as.Date(Date_MsBl_End, format = "%m/%d/%Y"),
+                   P_Ev_B4P = round(((SeasPSoEv_Sowing - SeasPSoEv_cc_termination)),2), #Units from 2SOIL are now in mm (no longer g plant-1).
+                   P_Ev_EVg = round(((SeasPSoEv_Tasselinit - SeasPSoEv_Sowing)),2),
+                   P_Ev_LVg = round(((SeasPSoEv_Silked - SeasPSoEv_Tasselinit)),2),
+                   P_Ev_Slk = round(((SeasPSoEv_grainFill - SeasPSoEv_Silked)),2),
+                   P_Ev_Gf = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_grainFill)),2),
+                   P_Ev_Veg = round(((SeasPSoEv_Silked - SeasPSoEv_Sowing)),2),
+                   P_Ev_Rep = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_Silked)),2),
+                   P_Ev_cum = round(((ifelse(is.na(SeasPSoEv_Matured), SeasPSoEv_Sim_ended, SeasPSoEv_Matured) - SeasPSoEv_Sowing)),2),
+                   A_Ev_B4P = round(((SeasASoEv_Sowing - SeasASoEv_cc_termination)),2),
+                   A_Ev_EVg = round(((SeasASoEv_Tasselinit - SeasASoEv_Sowing)),2),
+                   A_Ev_LVg = round(((SeasASoEv_Silked - SeasASoEv_Tasselinit)),2),
+                   A_Ev_Slk = round(((SeasASoEv_grainFill - SeasASoEv_Silked)),2),
+                   A_Ev_Gf = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_grainFill)),2),
+                   A_Ev_Veg = round(((SeasASoEv_Silked - SeasASoEv_Sowing)),2),
+                   A_Ev_Rep = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_Silked)),2),
+                   A_Ev_cum = round(((ifelse(is.na(SeasASoEv_Matured), SeasASoEv_Sim_ended, SeasASoEv_Matured) - SeasASoEv_Sowing)),2),
+                   P_Tr_B4P = round(((SeasPTran_Sowing - SeasPTran_cc_termination)),2),
+                   P_Tr_EVg = round(((SeasPTran_Tasselinit - SeasPTran_Sowing)),2),
+                   P_Tr_LVg = round(((SeasPTran_Silked - SeasPTran_Tasselinit)),2),
+                   P_Tr_Slk = round(((SeasPTran_grainFill - SeasPTran_Silked)),2),
+                   P_Tr_Gf = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_grainFill)),2),
+                   P_Tr_Veg = round(((SeasPTran_Silked - SeasPTran_Sowing)),2),
+                   P_Tr_Rep = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_Silked)),2),
+                   P_Tr_cum = round(((ifelse(is.na(SeasPTran_Matured), SeasPTran_Sim_ended, SeasPTran_Matured) - SeasPTran_Sowing)),2),
+                   A_Tr_B4P = round(((SeasATran_Sowing - SeasATran_cc_termination)),2),
+                   A_Tr_EVg = round(((SeasATran_Tasselinit - SeasATran_Sowing)),2),
+                   A_Tr_LVg = round(((SeasATran_Silked - SeasATran_Tasselinit)),2),
+                   A_Tr_Slk = round(((SeasATran_grainFill - SeasATran_Silked)),2),
+                   A_Tr_Gf = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_grainFill)),2),
+                   A_Tr_Veg = round(((SeasATran_Silked - SeasATran_Sowing)),2),
+                   A_Tr_Rep = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_Silked)),2),
+                   A_Tr_cum = round(((ifelse(is.na(SeasATran_Matured), SeasATran_Sim_ended, SeasATran_Matured) - SeasATran_Sowing)),2),
+                   Rain_B4P = round(((SeasRain_Sowing - SeasRain_cc_termination)),2),
+                   Rain_EVg = round(((SeasRain_Tasselinit - SeasRain_Sowing)),2),
+                   Rain_LVg = round(((SeasRain_Silked - SeasRain_Tasselinit)),2),
+                   Rain_Slk = round(((SeasRain_grainFill - SeasRain_Silked)),2),
+                   Rain_Gf = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_grainFill)),2),
+                   Rain_Veg = round(((SeasRain_Silked - SeasRain_Sowing)),2),
+                   Rain_Rep = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_Silked)),2),
+                   Rain_cum = round(((ifelse(is.na(SeasRain_Matured), SeasRain_Sim_ended, SeasRain_Matured) - SeasRain_Sowing)),2),
+                   Infl_B4P = round(((SeasInfil_Sowing - SeasInfil_cc_termination)),2),
+                   Infl_EVg = round(((SeasInfil_Tasselinit - SeasInfil_Sowing)),2),
+                   Infl_LVg = round(((SeasInfil_Silked - SeasInfil_Tasselinit)),2),
+                   Infl_Slk = round(((SeasInfil_grainFill - SeasInfil_Silked)),2),
+                   Infl_Gf = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_grainFill)),2),
+                   Infl_Veg = round(((SeasInfil_Silked - SeasInfil_Sowing)),2),
+                   Infl_Rep = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_Silked)),2),
+                   Infl_cum = round(((ifelse(is.na(SeasInfil_Matured), SeasInfil_Sim_ended, SeasInfil_Matured) - SeasInfil_Sowing)),2)) %>%
+     dplyr::select(ID, dt_cct, dt_Sow, dt_Gmn, dt_Emg, dt_Tsint, dt_Tsl, dt_Slk, dt_Gf, dt_Mat, dt_SiEnd, GO5_End, MsBl_End,
+                   P_Ev_B4P, P_Ev_EVg, P_Ev_LVg, P_Ev_Slk, P_Ev_Gf, P_Ev_Veg, P_Ev_Rep, P_Ev_cum,
+                   A_Ev_B4P, A_Ev_EVg, A_Ev_LVg, A_Ev_Slk, A_Ev_Gf, A_Ev_Veg, A_Ev_Rep, A_Ev_cum,
+                   P_Tr_B4P, P_Tr_EVg, P_Tr_LVg, P_Tr_Slk, P_Tr_Gf, P_Tr_Veg, P_Tr_Rep, P_Tr_cum,
+                   A_Tr_B4P, A_Tr_EVg, A_Tr_LVg, A_Tr_Slk, A_Tr_Gf, A_Tr_Veg, A_Tr_Rep, A_Tr_cum,
+                   Rain_B4P, Rain_EVg, Rain_LVg, Rain_Slk, Rain_Gf, Rain_Veg, Rain_Rep, Rain_cum,
+                   Infl_B4P, Infl_EVg, Infl_LVg, Infl_Slk, Infl_Gf, Infl_Veg, Infl_Rep, Infl_cum,) %>%
+     dplyr::filter_all(any_vars(!is.na(.)))
     
     
     # water and N stress related metrics
@@ -354,90 +361,60 @@ geospatial_processing <- function(FileDir, Init, cc_termination_date, Processed_
 }
 
 
-
-
-
 ##(III). STEPS FOR OUPUT PROCESSING FOR EACH RESPECTIVE COUNTIES--------------------------------------------------------------------------------------------------------------------------------------------
 "For you to run this function, which I call 'geospatial_processing' and process model outputs for any given county, follow the following steps.
 In this example, I processed model outputs for grid cells from calvert county in MD."
 
-counties_full <- c("Allegany", "Anne_Arundel","Baltimore","Calvert","Caroline","Carroll", "Cecil","Charles","Dorchester","Frederick","Garrett","Harford","Howard","Kent","Montgomery","Queen_Annes","Somerset","St_Marys","Talbot","Washington","Wicomico","Worcester")
-scenarios_full <- c("","_2wkearly","_2wklater","_4000","_8000","_2wkearly_4000","_2wkearly_8000","_2wklater_4000","_2wklater_8000")
-scen_out_full <- c("","_2wkearly_Baseline","_2wklater_Baseline","_Baseline_4000","_Baseline_8000","_2wkearly_4000","_2wkearly_8000","_2wklater_4000","_2wklater_8000")
+# template_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_templates/"
+# output_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueinput_data/"
+# processed_mainpath = "D:/PSA_Projects/CROWN_Geospatial/PSA2023_residueoutput_data/"
 
-counties <- counties_full[10]
-scenarios <- scenarios_full[2:length(scenarios_full)]
-scen_out <- scen_out_full[2:length(scenarios_full)]
+mainpath <- paste0(dirname(rstudioapi::getActiveDocumentContext()$path), "/")
+setwd(mainpath)
 
-scenarios <- scenarios_full[7]
-scen_out <- scen_out_full[7]
+template_mainpath = mainpath
+output_mainpath = paste0(mainpath, "PSA2023_residueinput_data/")
+processed_mainpath = mainpath
 
-counties = c("Howard2")
-scenarios = c("")
-scen_out = c("")
+state = "MD"
+county = "Frederick_test"
+template_path = paste0(template_mainpath,"geospatial_template_",state,"_",county,".xlsx")
+output_path = paste0(output_mainpath,state,"/",county,"/")
+processed_path = paste0(processed_mainpath)
 
-
-for (i in 1:length(counties)) {
-  for (j in 1:length(scenarios)) {
-    #template_name = paste("Geospatial_template_50percent_",counties[i],scenarios[j],sep="")
-    template_name = c("psa2023_MD_howard_cover")
-    template_name = c("psa_template_NC_residue")
 ## STEP 2. Specify the directory path in Ln 346 where master excel used to create model input files is located. ----
 "This table will be used later on to convert the model output (i.e., g/plant) into desired units (such as kg/ha or mm of water)."
-#Init <- read_excel("C:/Users/resham.thapa/Desktop/PSA geospatial project/bare_input_templates/Geospatial_template_calvert.xlsx", sheet = 'Init')
-    #Init <- read_excel("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/all_1km_gridcells/Geospatial_template_worcester.xlsx", sheet = 'Init')
-    #Init <- read_excel("D:/PSA_Projects/CROWN_Geospatial/MD_bareinput_templates/Geospatial_template_worcester.xlsx", sheet = 'Init')
-    #init_name = paste("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/50percent_1km_gridcells/",template_name,".xlsx",sep = "")
-    #init_name = paste("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/all_1km_gridcells/",template_name,".xlsx",sep = "")    
-    init_name = paste("D:/PSA_Projects/CROWN_Geospatial/PSA2023_templates/",template_name,".xlsx",sep = "")
-    init_name = paste("D:/PSA_Projects/CROWN_Geospatial/calibration/PSA_2023/PSA_templates/",template_name,".xlsx",sep = "")
-    
-    Init <- read_excel(init_name, sheet = 'Init')
+Init <- read_excel(template_path, sheet = 'Init')
 
-## STEP 3. Specify the directory path in Ln 349 where master excel used to create model input files (bare) is located. ----
-"This will be used to extract cover crop termination dates (i.e., bare addtion dates) for data processing purposes."
-#cc_termination_date <- read_excel("C:/Users/resham.thapa/Desktop/PSA geospatial project/bare_input_templates/Geospatial_template_calvert.xlsx", sheet = 'Fertilization')
-#cc_termination_date <- read_excel("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/50percent_1km_gridcells/Geospatial_template_50percent_calvert_4000.xlsx", sheet = 'Fertilization')
-    #cc_termination_date <- read_excel("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/Geospatial_template_worcester.xlsx", sheet = 'Fertilization')
-    #cc_termination_date <- read_excel("D:/PSA_Projects/CROWN_Geospatial/MD_residueinput_templates/all_1km_gridcells/Geospatial_template_worcester.xlsx", sheet = 'Fertilization')
-    cc_termination_date <- read_excel(init_name, sheet = 'Fertilization')
-    
+## STEP 3. Specify the directory path in Ln 349 where master excel used to create model input files (residue) is located. ----
+"This will be used to extract cover crop termination dates  for data processing purposes."
+cc_termination_date <- read_excel(template_path, sheet = 'Fertilization')
+
 ## STEP 4. Specify the directory path in Ln 354 where sub-folders containing MAIZSIM outputs from a given county are located.----
 "In this example, I specified 'MD_results_calvert', i.e., results for all grid cells from calvert county."
-#Model_out_Filepath <- "C:/Users/resham.thapa/Desktop/PSA geospatial project/completed_bare_runs/annarundel_bare_eg"
-    #Model_out_Filepath <- "F:/PSA_projects/CROWN_Geospatial/MD_residue_results/MD_residue_results_worcester"
-    #Model_out_Filepath <- "F:/PSA_projects/CROWN_Geospatial/MD_residue_results/50percent_gridcells/MD_residue_results_50percent_calvert_4000"
-    #Model_out_Filepath <- paste("F:/PSA_projects/CROWN_Geospatial/MD_residue_results/50percent_gridcells/MD_residue_results_50percent_",counties[i],scenarios[j],sep = "")
-    #Model_out_Filepath <- paste("H:\MD_residue_results\50percent_gridcells\MD_residue_results_50percent_Dorchester")
-    Model_out_Filepath <- paste("F:/PSA_projects/CROWN_Geospatial/psa2023_MD_residue_results/howard2")
-    Model_out_Filepath <- paste("D:/PSA_Projects/CROWN_Geospatial/calibration/PSA_2023/results/NC/residue")
-    
-#FileDir <- list.dirs(path = Model_out_Filepath, full.names = TRUE, recursive = FALSE)
-    FileDir <- list.dirs(path = Model_out_Filepath, full.names = TRUE, recursive = FALSE)
+Model_out_Filepath <- output_path
+FileDir <- list.dirs(path = Model_out_Filepath, full.names = TRUE, recursive = FALSE)
+
 # STEP 5. Specify the directory path in Ln 359 where you want to store the excel sheets that will contain processed model outputs for all grid cells for a given county.----
 #For this, make sure to create a folder named 'processed_model_outputs' in your local computer and specify its path in Ln 359.
-    Processed_model_out_filepath <- "F:/PSA_projects/CROWN_Geospatial/psa2023_MD_processed_model_outputs"
-    Processed_model_out_filepath <- "D:/PSA_Projects/CROWN_Geospatial/calibration/PSA_2023/results"
-    
-    
+
+Processed_model_out_filepath <- processed_path
+
 # STEP 6. Specify the file name in Ln 357,i.e., name of the excel sheet that will contain the processed model outputs.----
 "In this example, I specified it as 'MD_bare_results_ann_arundel' BECAUSE it will contain results from grid cells from Ann arundel county for bare simulations."
-    #Processed_model_out_filename <- "MD_residue_results_worcester_baseline"
-    #Processed_model_out_filename <- "MD_calvert_CC_Baseline_4000"
-    #Processed_model_out_filename <- paste("MD_",counties[i],"_CC",scen_out[j],sep = "")
-    Processed_model_out_filename <- "psa2023_MD_howard_residue_output.xlsx"
-    Processed_model_out_filename <- "psa2023_calibration_NC_residue_output.xlsx"
+
+Processed_model_out_filename <- paste0("PSA2023_residue_",state,"_",county)
     
 # STEP 7. Run 'geospatial_processing' function----
-    tic()
-    geospatial_processing(FileDir, 
+tic()
+geospatial_processing(FileDir, 
                           Init, 
                           cc_termination_date,
                           Processed_model_out_filepath, 
                           Processed_model_out_filename)
-    toc()
-  }
-}
+toc()
+
+
 
 ## STEP 8. Repeat STEP 2-7 for processing model outputs for other MD counties.----
 

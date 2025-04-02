@@ -11,9 +11,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     include: [
-      'mapbox-gl',
-      '@mapbox/mapbox-gl-draw',
-      '@mapbox/mapbox-gl-geocoder',
       'wellknown',
     ],
   },
