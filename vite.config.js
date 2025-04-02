@@ -6,14 +6,13 @@ export default defineConfig({
   server: {
     open: true,
   },
-  optimizeDeps: {
-    include: [
-      'mapbox-gl',
-      '@mapbox/mapbox-gl-draw',
-      '@mapbox/mapbox-gl-geocoder',
-    ],
-  },
   build: {
     outDir: '/usr/src/app/build',
   },
+  optimizeDeps: {
+    include: [
+      'wellknown',
+    ],
+  },
+  assetsInclude: ['**/*.xlsx'],
 });

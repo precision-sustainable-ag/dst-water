@@ -5,6 +5,8 @@ import React, {
   useEffect, useCallback, useState, useRef,
 } from 'react';
 
+// import { useSSE } from 'use-sse';
+
 import { SSE } from 'sse.js'; // SSE with POST
 import { useSelector, useDispatch } from 'react-redux';
 import JSZip from 'jszip';
@@ -18,8 +20,10 @@ import './styles.scss';
 
 import { comp } from './comp';
 
-const url = 'https://api.precisionsustainableag.org';
-// const url = 'http://localhost';
+// const url = 'https://api.precisionsustainableag.org';
+// const url = 'http://localhost:8080';
+const url = 'http://20.51.235.93'; // good
+// const url = 'http://40.117.180.247';
 
 let globalButton;
 let globalFiles = {
@@ -200,6 +204,21 @@ const Graph = ({ filename, col }) => {
   );
 }; // Graph
 
+// const Output2 = () => {
+//   const messages = useSSE(`${url}/maizsim`, []);
+//   console.log(messages);
+//   return (
+//     <div>
+//       <h3>Messages</h3>
+//       <ul>
+//         {messages.map((msg, i) => (
+//           <li key={i}>{msg.message}</li>
+//         ))}
+//       </ul>
+//     </div>
+//   );
+// }; // Output2
+
 let progress = '';
 const Output = () => {
   const dispatch = useDispatch();
@@ -207,6 +226,7 @@ const Output = () => {
   const button = useSelector(get.button);
 
   const message = (e) => {
+    console.log(e.data);
     const progress2 = `${globalFiles.Progress + e.data.replace(/zzz/g, '\n')}\n`;
 
     globalFiles = {
@@ -247,7 +267,7 @@ const Output = () => {
   };
 
   const runModel = () => {
-    console.clear();
+    // console.clear();
     progress = '';
 
     const evtSource = new SSE(`${url}/maizsim`);

@@ -1,6 +1,3 @@
-/* eslint-disable no-console */
-// // code breaking eslint rules were disabled --- MILAD
-/* eslint-disable no-alert */
 /* eslint-disable camelcase */
 /* eslint-disable max-len */
 /* eslint-disable no-use-before-define */
@@ -11,6 +8,24 @@ import { current } from '@reduxjs/toolkit';
 import { createStore, set } from 'redux-autosetters';
 
 const initialState = {
+  map: {
+    lat: 0,
+    lon: 0,
+    elevation: 0,
+    zoom: 13,
+    area: 0,
+    bounds: 'conus',
+    address: {
+      address: '',
+      fullAddress: '',
+      city: '',
+      county: '',
+      state: '',
+      stateCode: '',
+      zipCode: '',
+    },
+    features: [],
+  },
   start: 0,
   newData: '',
   focus: '',
