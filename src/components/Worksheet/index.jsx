@@ -20,9 +20,11 @@ import './styles.scss';
 
 import { comp } from './comp';
 
-const url = 'https://api.precisionsustainableag.org';
+// const url = 'https://api.precisionsustainableag.org';
 // const url = 'http://localhost:8080';
 // const url = 'http://20.51.235.93'; // good except HTTP
+const url = 'https://waterdst.eastus.cloudapp.azure.com';
+
 // const url = 'http://40.117.180.247';
 
 let globalButton;
