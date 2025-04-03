@@ -2,7 +2,8 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import Map from 'redux-map';
+import { PSAReduxMap as Map } from 'shared-react-components/src';
+
 import Input from '../Inputs';
 import Help from '../Help';
 
@@ -39,6 +40,8 @@ const InteractiveMap = () => (
     hasElevation
     hasClear
     hasHelp
+    hasMarkerPopup
+    showCursorCoords
     otherHelp={(
       <p>
         To restart all location services, use the &quot;Clear Location&quot; button in the upper right of the screen.

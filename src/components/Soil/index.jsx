@@ -9,6 +9,7 @@ const Soil = () => {
   const dispatch = useDispatch();
   const gotSSURGO = useSelector(get.gotSSURGO);
   const SSURGO = useSelector(get.SSURGO);
+
   const { lat } = useSelector(get.map);
 
   useEffect(() => {
@@ -17,9 +18,8 @@ const Soil = () => {
     }
   }, [gotSSURGO, dispatch, lat]);
 
-  if (!gotSSURGO) {
-    return <>Querying SSURGO database &hellip;</>;
-  }
+  if (!lat) return <>Please choose a Location first</>;
+  if (!gotSSURGO) return <>Querying SSURGO database &hellip;</>;
 
   // console.log(SSURGO);
 

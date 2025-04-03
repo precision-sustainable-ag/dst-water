@@ -1,6 +1,3 @@
-/* eslint-disable no-console */
-// // code breaking eslint rules were disabled --- MILAD
-/* eslint-disable no-alert */
 /* eslint-disable camelcase */
 /* eslint-disable max-len */
 /* eslint-disable no-use-before-define */
