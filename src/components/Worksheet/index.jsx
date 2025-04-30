@@ -22,7 +22,6 @@ import { comp } from './comp';
 
 // const url = 'https://api.precisionsustainableag.org';
 // const url = 'http://localhost:8080';
-// const url = 'http://20.51.235.93'; // good except HTTP
 const url = 'https://waterdst.eastus.cloudapp.azure.com';
 
 // const url = 'http://40.117.180.247';
@@ -224,6 +223,7 @@ const Graph = ({ filename, col }) => {
 let progress = '';
 const Output = () => {
   const dispatch = useDispatch();
+  const site = useSelector(get.site);
   const files = useSelector(get.soilfiles);
   const button = useSelector(get.button);
 
@@ -272,7 +272,7 @@ const Output = () => {
     // console.clear();
     progress = '';
 
-    const evtSource = new SSE(`${url}/maizsim`);
+    const evtSource = new SSE(`${url}/maizsim?id=${site}`);
     evtSource.stream();
 
     evtSource.addEventListener('file', file);
